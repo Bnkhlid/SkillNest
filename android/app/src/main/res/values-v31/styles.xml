@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Android 12+ system splash: SkillNest branding, not the Flutter logo. -->
+    <style name="LaunchTheme" parent="@android:style/Theme.Light.NoTitleBar">
+        <item name="android:windowSplashScreenBackground">#D0F4F0</item>
+        <item name="android:windowSplashScreenAnimatedIcon">@drawable/skillnest_launch_icon</item>
+        <item name="android:windowLightStatusBar">true</item>
+        <item name="android:statusBarColor">#D0F4F0</item>
+    </style>
+    <style name="NormalTheme" parent="@android:style/Theme.Light.NoTitleBar">
+        <item name="android:windowBackground">?android:colorBackground</item>
+    </style>
+</resources>

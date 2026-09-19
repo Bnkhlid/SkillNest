@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "164744413641",
+    "project_id": "skillnest-e5eda",
+    "storage_bucket": "skillnest-e5eda.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:164744413641:android:dc8bc957d78fd54fa86818",
+        "android_client_info": {
+          "package_name": "com.learningvault.learning_vault"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDQfX8DqIg1V3zJUGoYHvYZ2L2AB-m14KI"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
