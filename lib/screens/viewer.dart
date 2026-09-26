@@ -106,6 +106,7 @@ class _ViewerScreenState extends State<ViewerScreen> {
   @override
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     return ListenableBuilder(
       listenable: Vault.I,
       builder: (context, _) {
@@ -117,9 +118,9 @@ class _ViewerScreenState extends State<ViewerScreen> {
         }
 
         return Scaffold(
-          backgroundColor: NotedColors.canvasLight,
+          backgroundColor: scheme.surface,
           appBar: AppBar(
-            backgroundColor: NotedColors.canvasLight,
+            backgroundColor: scheme.surface,
             leading: const BackButton(),
             actions: [
               if (e.url.isNotEmpty)
@@ -275,7 +276,7 @@ class _ViewerScreenState extends State<ViewerScreen> {
                         Container(
                           padding: const EdgeInsets.all(16),
                           decoration: NotedBox.card(
-                            color: Colors.white,
+                            color: isDark ? scheme.surfaceContainerLow : Colors.white,
                             radius: 14,
                           ),
                           child: Column(
@@ -283,9 +284,9 @@ class _ViewerScreenState extends State<ViewerScreen> {
                             children: [
                               Row(
                                 children: [
-                                  const Icon(
+                                  Icon(
                                     Icons.link_rounded,
-                                    color: NotedColors.ink,
+                                    color: scheme.onSurface,
                                     size: 20,
                                   ),
                                   const SizedBox(width: 8),
@@ -294,10 +295,10 @@ class _ViewerScreenState extends State<ViewerScreen> {
                                       e.url,
                                       maxLines: 1,
                                       overflow: TextOverflow.ellipsis,
-                                      style: const TextStyle(
+                                      style: TextStyle(
                                         fontSize: 13,
                                         fontWeight: FontWeight.w600,
-                                        color: NotedColors.inkMuted,
+                                        color: isDark ? scheme.onSurfaceVariant : NotedColors.inkMuted,
                                       ),
                                     ),
                                   ),
@@ -306,10 +307,10 @@ class _ViewerScreenState extends State<ViewerScreen> {
                               const SizedBox(height: 12),
                               ElevatedButton.icon(
                                 style: ElevatedButton.styleFrom(
-                                  backgroundColor: NotedColors.yellow,
-                                  foregroundColor: NotedColors.ink,
-                                  side: const BorderSide(
-                                    color: NotedColors.border,
+                                  backgroundColor: isDark ? const Color(0xFFC99700) : NotedColors.yellow,
+                                  foregroundColor: isDark ? Colors.black : NotedColors.ink,
+                                  side: BorderSide(
+                                    color: isDark ? scheme.outlineVariant : NotedColors.border,
                                     width: 2,
                                   ),
                                   minimumSize: const Size.fromHeight(44),
@@ -334,7 +335,7 @@ class _ViewerScreenState extends State<ViewerScreen> {
                           width: double.infinity,
                           padding: const EdgeInsets.all(20),
                           decoration: NotedBox.card(
-                            color: Colors.white,
+                            color: isDark ? scheme.surfaceContainerLow : Colors.white,
                             radius: 16,
                           ),
                           child: Column(
@@ -342,10 +343,10 @@ class _ViewerScreenState extends State<ViewerScreen> {
                             children: [
                               Text(
                                 e.note.isNotEmpty ? e.note : e.title,
-                                style: const TextStyle(
+                                style: TextStyle(
                                   fontSize: 16,
                                   height: 1.65,
-                                  color: NotedColors.ink,
+                                  color: scheme.onSurface,
                                   fontWeight: FontWeight.w500,
                                 ),
                               ),
@@ -364,13 +365,13 @@ class _ViewerScreenState extends State<ViewerScreen> {
                           ),
                         ),
                       ] else if (e.note.isNotEmpty) ...[
-                        const Text(
+                        Text(
                           'NOTES',
                           style: TextStyle(
                             fontSize: 12,
                             fontWeight: FontWeight.w900,
                             letterSpacing: 0.8,
-                            color: NotedColors.ink,
+                            color: scheme.onSurface,
                           ),
                         ),
                         const SizedBox(height: 8),
@@ -378,15 +379,15 @@ class _ViewerScreenState extends State<ViewerScreen> {
                           width: double.infinity,
                           padding: const EdgeInsets.all(16),
                           decoration: NotedBox.card(
-                            color: Colors.white,
+                            color: isDark ? scheme.surfaceContainerLow : Colors.white,
                             radius: 14,
                           ),
                           child: Text(
                             e.note,
-                            style: const TextStyle(
+                            style: TextStyle(
                               fontSize: 15,
                               height: 1.5,
-                              color: NotedColors.ink,
+                              color: scheme.onSurface,
                             ),
                           ),
                         ),
@@ -400,6 +401,7 @@ class _ViewerScreenState extends State<ViewerScreen> {
   }
 
   Widget _localFileViewer(ResourceItem e, FileItem file, ColorScheme scheme) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     final isImage = [
       'png',
       'jpg',
@@ -448,7 +450,7 @@ class _ViewerScreenState extends State<ViewerScreen> {
             Container(
               padding: const EdgeInsets.all(20),
               decoration: NotedBox.card(
-                color: Colors.white,
+                color: isDark ? scheme.surfaceContainerLow : Colors.white,
                 radius: 18,
                 shadow: true,
                 shadowOffset: const Offset(2, 2.5),
@@ -458,32 +460,35 @@ class _ViewerScreenState extends State<ViewerScreen> {
                   Container(
                     padding: const EdgeInsets.all(16),
                     decoration: BoxDecoration(
-                      color: NotedColors.yellow,
+                      color: isDark ? const Color(0xFFC99700) : NotedColors.yellow,
                       borderRadius: BorderRadius.circular(16),
-                      border: Border.all(color: NotedColors.border, width: 2),
+                      border: Border.all(
+                        color: isDark ? scheme.outlineVariant : NotedColors.border,
+                        width: 2,
+                      ),
                     ),
-                    child: const Icon(
+                    child: Icon(
                       Icons.description_outlined,
                       size: 48,
-                      color: NotedColors.ink,
+                      color: isDark ? Colors.black : NotedColors.ink,
                     ),
                   ),
                   const SizedBox(height: 16),
                   Text(
                     file.fileName,
-                    style: const TextStyle(
+                    style: TextStyle(
                       fontSize: 16,
                       fontWeight: FontWeight.w800,
-                      color: NotedColors.ink,
+                      color: scheme.onSurface,
                     ),
                     textAlign: TextAlign.center,
                   ),
                   const SizedBox(height: 6),
                   Text(
                     'Stored locally · $ext · ${file.humanSize}',
-                    style: const TextStyle(
+                    style: TextStyle(
                       fontSize: 13,
-                      color: NotedColors.inkMuted,
+                      color: isDark ? scheme.onSurfaceVariant : NotedColors.inkMuted,
                       fontWeight: FontWeight.w500,
                     ),
                   ),

@@ -1,6 +1,9 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 
 import '../app_theme.dart';
+import '../core/services/share_service.dart';
 import '../main.dart';
 import '../vault.dart';
 import '../widgets/components.dart';
@@ -19,6 +22,7 @@ class RootShell extends StatefulWidget {
 
 class _RootShellState extends State<RootShell> {
   int _tab = 0;
+  StreamSubscription<String>? _shareSub;
 
   static const _screens = [
     HomeScreen(),
@@ -30,7 +34,9 @@ class _RootShellState extends State<RootShell> {
   @override
   void initState() {
     super.initState();
+    ShareService.instance.markAppReady();
     appTab.addListener(_onTabRequested);
+
     WidgetsBinding.instance.addPostFrameCallback(
       (_) => _showNotificationOnboarding(),
     );
@@ -38,6 +44,7 @@ class _RootShellState extends State<RootShell> {
 
   @override
   void dispose() {
+    _shareSub?.cancel();
     appTab.removeListener(_onTabRequested);
     super.dispose();
   }
@@ -50,41 +57,25 @@ class _RootShellState extends State<RootShell> {
     final vault = Vault.I;
     if (!mounted || vault.notificationOnboardingHandled) return;
 
-    final enable =
-        await LvDialog.show(
-          context,
-          icon: Icons.notifications_active_outlined,
-          iconColor: NotedColors.ink,
-          title: 'Stay up to date with SkillNest',
-          message:
-              'Enable notifications to receive important reminders and SkillNest updates.',
-          confirmLabel: 'Enable notifications',
-          cancelLabel: 'Not now',
-        ) ??
-        false;
+    // Go straight to the system permission prompt — one tap is all the user needs.
+    final granted = await vault.handleNotificationOnboarding();
     if (!mounted) return;
-
-    if (enable) {
-      final granted = await vault.handleNotificationOnboarding();
-      if (!mounted) return;
-      LvSnackbar.show(
-        context,
-        granted
-            ? 'Notifications enabled.'
-            : 'Notifications are off. You can enable them later in Settings.',
-        icon: granted
-            ? Icons.notifications_active_rounded
-            : Icons.notifications_off_outlined,
-      );
-    } else {
-      await vault.dismissNotificationOnboarding();
-    }
+    LvSnackbar.show(
+      context,
+      granted
+          ? 'Notifications enabled.'
+          : 'Notifications are off. You can enable them later in Settings.',
+      icon: granted
+          ? Icons.notifications_active_rounded
+          : Icons.notifications_off_outlined,
+    );
   }
 
   @override
   Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
     return Scaffold(
-      backgroundColor: NotedColors.canvasLight,
+      backgroundColor: scheme.surface,
       // Reserve layout space for the navigation bar. With extendBody enabled,
       // the last Home section could scroll underneath the raised + button on
       // short devices.
@@ -115,6 +106,9 @@ class _VaultNavBar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
     return SafeArea(
       top: false,
       child: Stack(
@@ -125,13 +119,16 @@ class _VaultNavBar extends StatelessWidget {
           Container(
             margin: const EdgeInsets.fromLTRB(14, 0, 14, 10),
             decoration: BoxDecoration(
-              color: Colors.white,
+              color: isDark ? scheme.surfaceContainerLowest : Colors.white,
               borderRadius: BorderRadius.circular(26),
-              border: Border.all(color: NotedColors.border, width: 2.2),
-              boxShadow: const [
+              border: Border.all(
+                color: isDark ? scheme.outlineVariant : NotedColors.border,
+                width: 2.2,
+              ),
+              boxShadow: [
                 BoxShadow(
-                  color: NotedColors.shadow,
-                  offset: Offset(3.5, 4.5),
+                  color: isDark ? Colors.black : NotedColors.shadow,
+                  offset: const Offset(3.5, 4.5),
                   blurRadius: 0,
                 ),
               ],
@@ -147,6 +144,8 @@ class _VaultNavBar extends StatelessWidget {
                       Icons.home_rounded,
                       Icons.home_outlined,
                       'Home',
+                      scheme,
+                      isDark,
                     ),
                   ),
                   Expanded(
@@ -156,6 +155,8 @@ class _VaultNavBar extends StatelessWidget {
                       Icons.search_rounded,
                       Icons.search_rounded,
                       'Search',
+                      scheme,
+                      isDark,
                     ),
                   ),
                   const Expanded(child: SizedBox()), // gap for the raised +
@@ -166,6 +167,8 @@ class _VaultNavBar extends StatelessWidget {
                       Icons.collections_bookmark_rounded,
                       Icons.collections_bookmark_outlined,
                       'Collections',
+                      scheme,
+                      isDark,
                     ),
                   ),
                   Expanded(
@@ -175,6 +178,8 @@ class _VaultNavBar extends StatelessWidget {
                       Icons.favorite_rounded,
                       Icons.favorite_border_rounded,
                       'Favorites',
+                      scheme,
+                      isDark,
                     ),
                   ),
                 ],
@@ -192,11 +197,14 @@ class _VaultNavBar extends StatelessWidget {
                 decoration: BoxDecoration(
                   color: NotedColors.yellow,
                   shape: BoxShape.circle,
-                  border: Border.all(color: NotedColors.border, width: 2.4),
-                  boxShadow: const [
+                  border: Border.all(
+                    color: isDark ? scheme.outline : NotedColors.border,
+                    width: 2.4,
+                  ),
+                  boxShadow: [
                     BoxShadow(
-                      color: NotedColors.shadow,
-                      offset: Offset(2.5, 3.5),
+                      color: isDark ? Colors.black : NotedColors.shadow,
+                      offset: const Offset(2.5, 3.5),
                       blurRadius: 0,
                     ),
                   ],
@@ -221,8 +229,13 @@ class _VaultNavBar extends StatelessWidget {
     IconData active,
     IconData inactive,
     String label,
+    ColorScheme scheme,
+    bool isDark,
   ) {
     final on = selected == index;
+    final activeColor = isDark ? scheme.primary : NotedColors.ink;
+    final inactiveColor = isDark ? scheme.onSurfaceVariant : NotedColors.inkSubtle;
+
     return InkWell(
       onTap: () => onSelect(index),
       borderRadius: BorderRadius.circular(16),
@@ -232,7 +245,7 @@ class _VaultNavBar extends StatelessWidget {
           Icon(
             on ? active : inactive,
             size: 23,
-            color: on ? NotedColors.ink : NotedColors.inkSubtle,
+            color: on ? activeColor : inactiveColor,
           ),
           const SizedBox(height: 3),
           Text(
@@ -243,7 +256,7 @@ class _VaultNavBar extends StatelessWidget {
               fontSize: 10.5,
               fontWeight: on ? FontWeight.w800 : FontWeight.w600,
               letterSpacing: 0.1,
-              color: on ? NotedColors.ink : NotedColors.inkSubtle,
+              color: on ? activeColor : inactiveColor,
             ),
           ),
         ],

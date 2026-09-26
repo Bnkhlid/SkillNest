@@ -118,6 +118,33 @@ class StickyNoteRepository {
     return noteId;
   }
 
+  Future<StickyItemModel> addItem(
+    String noteId,
+    String text, {
+    bool isBullet = false,
+  }) async {
+    final itemId = 'si_${_uuid.v4()}';
+    await _dao.insertItem(
+      StickyItemsCompanion(
+        id: Value(itemId),
+        noteId: Value(noteId),
+        textContent: Value(text),
+        state: const Value('unchecked'),
+        isBullet: Value(isBullet),
+        position: const Value(0),
+        createdAt: Value(DateTime.now()),
+      ),
+    );
+    return StickyItemModel(
+      id: itemId,
+      noteId: noteId,
+      text: text,
+      state: NotedCheckState.unchecked,
+      isBullet: isBullet,
+      position: 0,
+    );
+  }
+
   Future<void> updateItemState(String itemId, NotedCheckState state) {
     return _dao.updateItemState(itemId, state.name);
   }

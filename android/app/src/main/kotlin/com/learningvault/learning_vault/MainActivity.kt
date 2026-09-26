@@ -76,11 +76,13 @@ class MainActivity : FlutterActivity() {
     private fun handleIntent(intent: Intent?) {
         if (intent == null) return
         val action = intent.action
-        if (Intent.ACTION_SEND == action || Intent.ACTION_PROCESS_TEXT == action) {
+        if (Intent.ACTION_SEND == action || Intent.ACTION_PROCESS_TEXT == action || Intent.ACTION_VIEW == action) {
             val text = intent.getStringExtra(Intent.EXTRA_TEXT)
                 ?: intent.getCharSequenceExtra(Intent.EXTRA_TEXT)?.toString()
                 ?: intent.clipData?.takeIf { it.itemCount > 0 }?.getItemAt(0)?.text?.toString()
                 ?: intent.clipData?.takeIf { it.itemCount > 0 }?.getItemAt(0)?.uri?.toString()
+                ?: intent.dataString
+                ?: intent.data?.toString()
                 ?: intent.getStringExtra(Intent.EXTRA_SUBJECT)
             if (!text.isNullOrBlank()) {
                 sharedText = text

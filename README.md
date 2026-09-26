@@ -1,26 +1,63 @@
 # SkillNest 📚
 
-A premium personal learning library — Flutter app (Material 3).
+A premium, 100% offline-first personal learning library built with Flutter (Material 3 & Neo-Brutalist design).
 
-Save articles, videos, PDFs and notes from anywhere, organize them into
-collections, track what you actually finish, and see it all in analytics.
+Save articles, videos, PDFs, and notes from anywhere (including system-wide share sheet on Android and iOS), organize them into nested collections, track what you actually finish, and see it all in offline analytics.
 
-## Run
+---
+
+## 🚀 Getting Started & Building
+
+### Prerequisites
+- **Flutter SDK**: 3.12+ (or latest 3.24+)
+- **Android Studio / Android SDK**: For Android builds
+- **Xcode 15+ & CocoaPods**: For iOS builds (on macOS)
+
+### 1. Android Build
 
 ```bash
-cd learning_vault
+# Get dependencies
 flutter pub get
-flutter run            # pick your device/emulator when prompted
+
+# Run on connected Android device/emulator
+flutter run
+
+# Build release APK
+flutter build apk --release
+
+# Build Google Play App Bundle (AAB)
+flutter build appbundle --release
 ```
 
-Tests & static analysis:
+### 2. iOS Build (macOS)
 
 ```bash
-flutter analyze        # 0 issues
-flutter test           # 5 tests pass
+# 1. Install Flutter dependencies
+flutter pub get
+
+# 2. Install CocoaPods dependencies
+cd ios && pod install && cd ..
+
+# 3. Build iOS release
+flutter build ios --release
+
+# Or open in Xcode for codesigning / archiving:
+open ios/Runner.xcworkspace
 ```
 
-## Design system
+### 3. Tests & Code Quality
+
+```bash
+# Analyze code (0 issues)
+flutter analyze
+
+# Run full test suite (238/238 automated tests pass)
+flutter test
+```
+
+---
+
+## 🎨 Design System
 
 | Token | Value |
 |---|---|
@@ -28,60 +65,30 @@ flutter test           # 5 tests pass
 | Card radius | 12px (`Radii.card`), sheets & dialogs 24px |
 | Touch targets | ≥44px everywhere (`Touch.min`, padded tap targets) |
 | Accent | Calm teal `#0F6E5F` (light) / `#86D3C1` (dark) |
-| Typography | Default San Francisco/Roboto stack, tight letter-spacing on titles |
+| Typography | Default San Francisco / Roboto stack, tight letter-spacing on titles |
 | Themes | Full light + dark via `ThemeMode` (System / Light / Dark in Settings) |
 
-All colors come from a hand-tuned `ColorScheme` (M3) in `lib/app_theme.dart` —
-no hard-coded colors in screens except the amber star (favorite).
+All colors come from a hand-tuned `ColorScheme` (M3) in `lib/app_theme.dart`.
 
-## Navigation
+---
 
-Bottom bar: **Home · Search · (raised ＋) · Collections · Favorites** —
-floating pill bar with a raised central Add button (`root_shell.dart`).
-Stacked routes: Add, Inbox, Details, Viewer, Collection Detail, Analytics,
-Settings, Trash.
+## 📱 Features & Highlights
 
-## Screens → files (lib/screens/)
+- **100% Offline-First SQLite**: Backed by Drift with immediate persistence and reactive streams.
+- **Universal Share Extension**: Share links, posts, and text directly from Safari, Chrome, Twitter/X, Instagram, LinkedIn, YouTube, Facebook, Reddit on both Android and iOS.
+- **Nested Collections**: Create parent and sub-collections with full hierarchy preservation during backup and restore.
+- **Full-Text Search & Multi-filter**: Instant search across titles, URLs, tags, sources, notes, and collections.
+- **Local Analytics Engine**: Offline computation of 8 KPI metrics, completion rates, source distribution, and weekly activity charts.
+- **Encrypted & Safe Backup/Restore**: Export and import complete library archives (`.zip`) safely.
+- **Smart Reminders**: Scheduled local morning/evening digests and weekly reviews.
 
-1. `splash.dart` — logo, name, tagline → auto-navigates to Onboarding
-2. `onboarding.dart` — Discover / Save / Organize / Learn · Skip · Back · Next · Get Started
-3. `home.dart` — avatar + greeting + notifications + search · Continue Learning (horizontal cards) · Progress ring → Analytics · Recent Saves · Inbox card · Quick Add · skeleton loading state
-4. `add_resource.dart` — URL / Paste / File / Share tabs · collection picker (+ create) · tag chips · keyboard-aware Save bar · duplicate dialog (Open Existing / Save Anyway / Cancel) · “Saved to Inbox” snackbar with **Undo**
-5. `inbox.dart` — search, filter sheet (Status/Type/Collection/Favorites), sort, select mode with bulk Move/Tag/Favorite/Delete, empty states
-6. `collections.dart` — 2-column collection cards (emoji, count, progress) + detail screen with Add Resource, status chips (All/Unread/In progress/Completed), sort, rename/delete
-7. `search.dart` — live search, recent-search chips + Clear History, full filter sheet (Type/Collection/Tag/Status/Favorite), results with favorite + overflow menu
-8. `favorites.dart` — search, sort, unfavorite inline
-9. `details.dart` — hero, favorite, ⋮ menu (Move/Tags/Copy URL/Share/Retry metadata/Delete) · Status segmented button · collection row · tags · auto-saved notes · Open CTA
-10. `viewer.dart` — calm reading surface, reading-progress bar, favorite/share/download/⋮ · Mark as Completed · Reopen · offline error state
-11. `analytics.dart` — time-range chips (7D…All) · collection filter · 8 KPI cards (each opens its related resources) · Activity / Saved-vs-Completed / Sources donut / Collections bars (all hand-painted, no packages) · Most opened / Never opened · Export (JSON/CSV) with loading + success/error
-12. `settings.dart` — profile edit · Theme (System/Light/Dark) · notification prefs · Backup & Restore (Export/Import with confirm → loading → success/error) · storage meter · Trash entry · Account & Sync (marked “soon”) · **demo switches: Simulate offline & Simulate export failure** · About
-13. `trash.dart` — search, select mode, Restore, Delete permanently, Empty Trash, 30-day retention labels, confirm dialogs
+---
 
-## Component library (lib/widgets/)
+## 📂 Architecture
 
-- `components.dart` — `LvThumb` (kind+accent thumbnail, skeleton while fetching),
-  `ResourceTile` (open/favorite/more, long-press select), `ContinueCard`,
-  `CollectionCard`, `StatusChip`, `SectionHeader`, `FilterBadgeIcon`,
-  `EmptyState`, `OfflineBanner`, `SkeletonTile`, `LvSheet`/`LvSheetAction`
-  (bottom sheets), `LvDialog` (confirm + prompt), `LvSnackbar`, plus shared
-  flows: Move-to-collection, Tags editor, Delete-with-undo.
-- `charts.dart` — `BarChart`, `GroupedBarChart`, `DonutChart` (CustomPainter).
-
-## States covered
-
-default · pressed (ripple) · selected (checkbox tiles, chips) · disabled
-(save button when invalid) · loading (spinners, progress dialog) · skeleton
-(Home + fetching metadata rows) · success (snackbars, completed) · error
-(backup failure, export failure) · empty (every list) · offline (banner +
-viewer error) · keyboard (Add screen save bar follows insets).
-
-## Architecture
-
-- `lib/models.dart` — `ResourceItem`, `CollectionModel`, `TrashEntry`,
-  `SearchFilters`, enums.
-- `lib/vault.dart` — single `ChangeNotifier` store (`Vault.I`) with seed data,
-  queries (search/sort/analytics) and all mutations. Swap with a database
-  later — screens only talk to this API.
-- Screens never mutate models directly; they call `Vault` methods so every
-  workflow (save → inbox → metadata, learn → completed → analytics,
-  delete → trash → restore) stays consistent.
+- `lib/core/database/` — Drift SQLite database, DAOs, schema definitions, and migrations.
+- `lib/core/services/` — Share sheet parsing, local notifications, backup/restore services, remote config.
+- `lib/models.dart` — Immutable domain models (`ResourceItem`, `CollectionModel`, `TrashEntry`, `SearchFilters`).
+- `lib/vault.dart` — In-memory reactive state manager and coordinator with the SQLite database.
+- `lib/screens/` — UI screens (Home, Search, Collections, Add Resource, Details, Viewer, Analytics, Settings, Trash, Sticky Notes).
+- `lib/widgets/` — Reusable Neo-Brutalist components and custom painted charts.

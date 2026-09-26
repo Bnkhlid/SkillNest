@@ -7,6 +7,7 @@ import '../core/utils/external_launcher.dart';
 import '../models.dart';
 import '../vault.dart';
 import '../widgets/components.dart';
+import '../main.dart' show RoutePaths;
 
 class DetailsScreen extends StatefulWidget {
   const DetailsScreen({super.key, required this.itemId});
@@ -131,6 +132,7 @@ class _DetailsScreenState extends State<DetailsScreen> {
   @override
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     return ListenableBuilder(
       listenable: Vault.I,
       builder: (context, _) {
@@ -142,11 +144,28 @@ class _DetailsScreenState extends State<DetailsScreen> {
         }
 
         return Scaffold(
-          backgroundColor: NotedColors.canvasLight,
+          backgroundColor: scheme.surface,
           appBar: AppBar(
-            backgroundColor: NotedColors.canvasLight,
-            leading: const BackButton(),
+            backgroundColor: scheme.surface,
+            leading: BackButton(
+              onPressed: () {
+                if (Navigator.of(context).canPop()) {
+                  Navigator.of(context).pop();
+                } else {
+                  Navigator.of(context).pushReplacementNamed(RoutePaths.root);
+                }
+              },
+            ),
             actions: [
+              IconButton(
+                icon: const Icon(Icons.chrome_reader_mode_outlined),
+                tooltip: 'Reader Mode',
+                onPressed: () => Navigator.pushNamed(
+                  context,
+                  RoutePaths.viewer,
+                  arguments: e.id,
+                ),
+              ),
               IconButton(
                 icon: Icon(
                   e.favorite ? Icons.star_rounded : Icons.star_outline_rounded,
@@ -176,11 +195,19 @@ class _DetailsScreenState extends State<DetailsScreen> {
                 ),
                 onSelected: (a) => _onMenuAction(a, e),
                 itemBuilder: (ctx) => [
+                  const PopupMenuItem(
+                    value: 'viewer',
+                    child: Text('Reader Mode (Clean View)'),
+                  ),
                   if (e.url.isNotEmpty)
                     const PopupMenuItem(
                       value: 'open_url',
                       child: Text('Open in app / browser'),
                     ),
+                  const PopupMenuItem(
+                    value: 'rename',
+                    child: Text('Rename source…'),
+                  ),
                   const PopupMenuItem(
                     value: 'move',
                     child: Text('Move to collection…'),
@@ -267,15 +294,32 @@ class _DetailsScreenState extends State<DetailsScreen> {
                             ],
                           )
                         else ...[
-                          Text(
-                            e.title,
-                            style: TextStyle(
-                              fontSize: 19,
-                              fontWeight: FontWeight.w800,
-                              letterSpacing: -0.4,
-                              height: 1.25,
-                              color: scheme.onSurface,
-                            ),
+                          Row(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Expanded(
+                                child: Text(
+                                  e.title,
+                                  style: TextStyle(
+                                    fontSize: 19,
+                                    fontWeight: FontWeight.w800,
+                                    letterSpacing: -0.4,
+                                    height: 1.25,
+                                    color: scheme.onSurface,
+                                  ),
+                                ),
+                              ),
+                              IconButton(
+                                icon: const Icon(Icons.edit_outlined, size: 18),
+                                tooltip: 'Rename source',
+                                padding: EdgeInsets.zero,
+                                constraints: const BoxConstraints(
+                                  minWidth: 32,
+                                  minHeight: 32,
+                                ),
+                                onPressed: () => promptRenameResource(context, e),
+                              ),
+                            ],
                           ),
                           const SizedBox(height: 6),
                           Text(
@@ -299,41 +343,13 @@ class _DetailsScreenState extends State<DetailsScreen> {
               // Status
               Text('STATUS', style: _sectionLabel(scheme)),
               const SizedBox(height: 10),
-              LayoutBuilder(
-                builder: (context, constraints) {
-                  final compact = constraints.maxWidth < 500;
-                  return SegmentedButton<ResourceStatus>(
-                    segments: [
-                      ButtonSegment(
-                        value: ResourceStatus.unread,
-                        label: Text(
-                          compact ? 'Unread' : ResourceStatus.unread.label,
-                        ),
-                      ),
-                      ButtonSegment(
-                        value: ResourceStatus.inProgress,
-                        label: Text(
-                          compact
-                              ? 'Progress'
-                              : ResourceStatus.inProgress.label,
-                        ),
-                      ),
-                      ButtonSegment(
-                        value: ResourceStatus.completed,
-                        label: Text(
-                          compact ? 'Done' : ResourceStatus.completed.label,
-                        ),
-                      ),
-                    ],
-                    selected: {e.status},
-                    showSelectedIcon: true,
-                    onSelectionChanged: (s) {
-                      Vault.I.setStatus(e.id, s.first);
-                      if (s.first == ResourceStatus.completed) {
-                        LvSnackbar.show(context, 'Marked as completed');
-                      }
-                    },
-                  );
+              _StatusSelector(
+                status: e.status,
+                onChanged: (newStatus) {
+                  Vault.I.setStatus(e.id, newStatus);
+                  if (newStatus == ResourceStatus.completed) {
+                    LvSnackbar.show(context, 'Marked as completed');
+                  }
                 },
               ),
               const SizedBox(height: Insets.l),
@@ -375,7 +391,10 @@ class _DetailsScreenState extends State<DetailsScreen> {
               const SizedBox(height: 10),
               Container(
                 padding: const EdgeInsets.all(Insets.m),
-                decoration: NotedBox.card(color: Colors.white, radius: 16),
+                decoration: NotedBox.card(
+                  color: isDark ? scheme.surfaceContainerLow : Colors.white,
+                  radius: 16,
+                ),
                 child: Column(
                   children: [
                     TextField(
@@ -414,6 +433,12 @@ class _DetailsScreenState extends State<DetailsScreen> {
               ],
 
               // Actions
+              _actionRow(
+                context,
+                Icons.edit_outlined,
+                'Rename Source',
+                () => promptRenameResource(context, e),
+              ),
               _actionRow(
                 context,
                 Icons.content_copy_rounded,
@@ -479,11 +504,11 @@ class _DetailsScreenState extends State<DetailsScreen> {
     );
   }
 
-  TextStyle _sectionLabel(ColorScheme scheme) => const TextStyle(
+  TextStyle _sectionLabel(ColorScheme scheme) => TextStyle(
     fontSize: 12,
     fontWeight: FontWeight.w900,
     letterSpacing: 0.8,
-    color: NotedColors.ink,
+    color: scheme.onSurface,
   );
 
   Widget _fileCard(
@@ -492,12 +517,13 @@ class _DetailsScreenState extends State<DetailsScreen> {
     FileItem file,
     ColorScheme scheme,
   ) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     final ext = file.fileExtension.isNotEmpty
         ? file.fileExtension.toUpperCase()
         : 'FILE';
     return Container(
       decoration: NotedBox.card(
-        color: Colors.white,
+        color: isDark ? scheme.surfaceContainerLow : Colors.white,
         radius: 16,
         shadow: true,
         shadowOffset: const Offset(2, 2.5),
@@ -510,32 +536,35 @@ class _DetailsScreenState extends State<DetailsScreen> {
           leading: Container(
             padding: const EdgeInsets.all(8),
             decoration: BoxDecoration(
-              color: NotedColors.yellow,
+              color: isDark ? const Color(0xFF352C16) : NotedColors.yellow,
               borderRadius: BorderRadius.circular(10),
-              border: Border.all(color: NotedColors.border, width: 1.5),
+              border: Border.all(
+                color: isDark ? const Color(0xFFFFC107) : NotedColors.border,
+                width: 1.5,
+              ),
             ),
-            child: const Icon(
+            child: Icon(
               Icons.description_outlined,
-              color: NotedColors.ink,
+              color: isDark ? Colors.white : NotedColors.ink,
               size: 22,
             ),
           ),
           title: Text(
             file.fileName,
-            style: const TextStyle(
+            style: TextStyle(
               fontSize: 14.5,
               fontWeight: FontWeight.w700,
-              color: NotedColors.ink,
+              color: scheme.onSurface,
             ),
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
           ),
           subtitle: Text(
             '$ext · ${file.humanSize}',
-            style: const TextStyle(
+            style: TextStyle(
               fontSize: 12,
               fontWeight: FontWeight.w600,
-              color: NotedColors.inkMuted,
+              color: isDark ? scheme.onSurfaceVariant : NotedColors.inkMuted,
             ),
           ),
           trailing: OutlinedButton(
@@ -562,28 +591,38 @@ class _DetailsScreenState extends State<DetailsScreen> {
     ResourceItem e,
     ColorScheme scheme,
   ) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     final c = e.collectionId == null
         ? null
         : Vault.I.collections.where((c) => c.id == e.collectionId).firstOrNull;
     return Container(
-      decoration: NotedBox.card(color: Colors.white, radius: 16),
+      decoration: NotedBox.card(
+        color: isDark ? scheme.surfaceContainerLow : Colors.white,
+        radius: 16,
+      ),
       clipBehavior: Clip.antiAlias,
       child: Material(
         color: Colors.transparent,
         child: ListTile(
           onTap: () => showMoveSheet(context, e),
-          leading: Text(c?.emoji ?? '📥', style: const TextStyle(fontSize: 22)),
+          leading: c != null
+              ? Text(c.emoji, style: const TextStyle(fontSize: 22))
+              : Icon(
+                  Icons.folder_open_rounded,
+                  size: 22,
+                  color: scheme.onSurfaceVariant,
+                ),
           title: Text(
             c?.name ?? 'Inbox (no collection)',
-            style: const TextStyle(
+            style: TextStyle(
               fontSize: 14.5,
               fontWeight: FontWeight.w700,
-              color: NotedColors.ink,
+              color: scheme.onSurface,
             ),
           ),
-          trailing: const Icon(
+          trailing: Icon(
             Icons.chevron_right_rounded,
-            color: NotedColors.ink,
+            color: scheme.onSurface,
           ),
         ),
       ),
@@ -597,10 +636,12 @@ class _DetailsScreenState extends State<DetailsScreen> {
     VoidCallback? onTap, {
     Color? foreground,
   }) {
+    final scheme = Theme.of(context).colorScheme;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     return Container(
       margin: const EdgeInsets.only(bottom: 8),
       decoration: NotedBox.card(
-        color: Colors.white,
+        color: isDark ? scheme.surfaceContainerLow : Colors.white,
         radius: 14,
         shadow: true,
         shadowOffset: const Offset(2, 2.5),
@@ -611,13 +652,13 @@ class _DetailsScreenState extends State<DetailsScreen> {
         child: ListTile(
           onTap: onTap,
           enabled: onTap != null,
-          leading: Icon(icon, color: foreground ?? NotedColors.ink, size: 21),
+          leading: Icon(icon, color: foreground ?? scheme.onSurface, size: 21),
           title: Text(
             label,
             style: TextStyle(
               fontSize: 14.5,
               fontWeight: FontWeight.w700,
-              color: foreground ?? NotedColors.ink,
+              color: foreground ?? scheme.onSurface,
             ),
           ),
           dense: true,
@@ -637,8 +678,12 @@ class _DetailsScreenState extends State<DetailsScreen> {
 
   void _onMenuAction(String action, ResourceItem e) {
     switch (action) {
+      case 'viewer':
+        Navigator.pushNamed(context, RoutePaths.viewer, arguments: e.id);
       case 'open_url':
         _launchUrl(context, e);
+      case 'rename':
+        promptRenameResource(context, e);
       case 'move':
         showMoveSheet(context, e);
       case 'tag':
@@ -669,5 +714,144 @@ class _DetailsScreenState extends State<DetailsScreen> {
           },
         );
     }
+  }
+}
+
+class _StatusSelector extends StatefulWidget {
+  const _StatusSelector({
+    required this.status,
+    required this.onChanged,
+  });
+
+  final ResourceStatus status;
+  final ValueChanged<ResourceStatus> onChanged;
+
+  @override
+  State<_StatusSelector> createState() => _StatusSelectorState();
+}
+
+class _StatusSelectorState extends State<_StatusSelector> {
+  late ResourceStatus _current;
+
+  @override
+  void initState() {
+    super.initState();
+    _current = widget.status;
+  }
+
+  @override
+  void didUpdateWidget(covariant _StatusSelector oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.status != widget.status) {
+      _current = widget.status;
+    }
+  }
+
+  Alignment _alignmentFor(ResourceStatus s) {
+    switch (s) {
+      case ResourceStatus.unread:
+        return const Alignment(-1.0, 0.0);
+      case ResourceStatus.inProgress:
+        return const Alignment(0.0, 0.0);
+      case ResourceStatus.completed:
+        return const Alignment(1.0, 0.0);
+    }
+  }
+
+  void _select(ResourceStatus next) {
+    if (_current == next) return;
+    setState(() => _current = next);
+    widget.onChanged(next);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
+    const options = [
+      (ResourceStatus.unread, 'Unread'),
+      (ResourceStatus.inProgress, 'Progress'),
+      (ResourceStatus.completed, 'Done'),
+    ];
+
+    return Container(
+      height: 48,
+      decoration: BoxDecoration(
+        color: isDark ? scheme.surfaceContainerHigh : const Color(0xFFF0EBDC),
+        borderRadius: BorderRadius.circular(Radii.control),
+        border: Border.all(
+          color: isDark ? scheme.outlineVariant : NotedColors.border,
+          width: 2,
+        ),
+      ),
+      child: Stack(
+        children: [
+          // Gliding active pill indicator
+          AnimatedAlign(
+            alignment: _alignmentFor(_current),
+            duration: const Duration(milliseconds: 200),
+            curve: Curves.fastOutSlowIn,
+            child: FractionallySizedBox(
+              widthFactor: 1 / 3,
+              heightFactor: 1.0,
+              child: Container(
+                margin: const EdgeInsets.all(3.5),
+                decoration: BoxDecoration(
+                  color: isDark ? const Color(0xFF352C16) : NotedColors.yellow,
+                  borderRadius: BorderRadius.circular(Radii.control - 4),
+                  border: Border.all(
+                    color: isDark
+                        ? const Color(0xFFFFC107)
+                        : NotedColors.border,
+                    width: 1.8,
+                  ),
+                  boxShadow: isDark
+                      ? null
+                      : const [
+                          BoxShadow(
+                            color: NotedColors.shadow,
+                            offset: Offset(1.5, 2),
+                            blurRadius: 0,
+                          ),
+                        ],
+                ),
+              ),
+            ),
+          ),
+          // Interactive text tabs
+          Row(
+            children: options.map((opt) {
+              final isSelected = opt.$1 == _current;
+              return Expanded(
+                child: GestureDetector(
+                  behavior: HitTestBehavior.opaque,
+                  onTap: () => _select(opt.$1),
+                  child: Container(
+                    height: double.infinity,
+                    alignment: Alignment.center,
+                    child: AnimatedDefaultTextStyle(
+                      duration: const Duration(milliseconds: 150),
+                      style: TextStyle(
+                        fontFamily: 'Roboto',
+                        fontSize: 13.5,
+                        fontWeight:
+                            isSelected ? FontWeight.w800 : FontWeight.w700,
+                        color: isSelected
+                            ? (isDark ? Colors.white : NotedColors.ink)
+                            : (isDark
+                                ? scheme.onSurfaceVariant
+                                : NotedColors.inkMuted),
+                      ),
+                      child: Text(opt.$2),
+                    ),
+                  ),
+                ),
+              );
+            }).toList(),
+          ),
+        ],
+      ),
+    );
   }
 }

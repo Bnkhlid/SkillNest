@@ -30,12 +30,13 @@ class CollectionDao extends DatabaseAccessor<AppDatabase> with _$CollectionDaoMi
     return into(collections).insert(companion);
   }
 
-  Future<bool> updateCollection(String id, {String? name, String? emoji, int? accent}) {
+  Future<bool> updateCollection(String id, {String? name, String? emoji, int? accent, String? parentId}) {
     return (update(collections)..where((c) => c.id.equals(id))).write(
       CollectionsCompanion(
         name: name != null ? Value(name) : const Value.absent(),
         emoji: emoji != null ? Value(emoji) : const Value.absent(),
         accent: accent != null ? Value(accent) : const Value.absent(),
+        parentId: parentId != null ? Value(parentId) : const Value.absent(),
         updatedAt: Value(DateTime.now()),
       ),
     ).then((count) => count > 0);

@@ -441,6 +441,27 @@ class RestoreService {
       }
 
       // 6. Foreign Key Relationships Validation
+      for (final c in collections) {
+        final cMap = c as Map<String, dynamic>;
+        final parentId = cMap['parentId'] as String?;
+        if (parentId != null && parentId.isNotEmpty) {
+          if (parentId == cMap['id']) {
+            return RestoreValidationResult(
+              isValid: false,
+              errorMessage:
+                  'Integrity error: collection (${cMap['id']}) references itself as parent.',
+            );
+          }
+          if (!collectionIds.contains(parentId)) {
+            return RestoreValidationResult(
+              isValid: false,
+              errorMessage:
+                  'Integrity error: collection (${cMap['id']}) references nonexistent parent collection ($parentId).',
+            );
+          }
+        }
+      }
+
       for (final r in resources) {
         final rMap = r as Map<String, dynamic>;
         final colId = rMap['collectionId'] as String?;
@@ -697,6 +718,7 @@ class RestoreService {
           name: m['name'] as String,
           emoji: m['emoji'] as String? ?? '📚',
           accent: m['accent'] as int? ?? 0,
+          parentId: m['parentId'] as String?,
           createdAt:
               DateTime.tryParse(m['createdAt']?.toString() ?? '') ??
               DateTime.now(),

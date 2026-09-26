@@ -51,6 +51,17 @@ class $CollectionsTable extends Collections
     requiredDuringInsert: false,
     defaultValue: const Constant(0),
   );
+  static const VerificationMeta _parentIdMeta = const VerificationMeta(
+    'parentId',
+  );
+  @override
+  late final GeneratedColumn<String> parentId = GeneratedColumn<String>(
+    'parent_id',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
   static const VerificationMeta _createdAtMeta = const VerificationMeta(
     'createdAt',
   );
@@ -91,6 +102,7 @@ class $CollectionsTable extends Collections
     name,
     emoji,
     accent,
+    parentId,
     createdAt,
     updatedAt,
     deletedAt,
@@ -130,6 +142,12 @@ class $CollectionsTable extends Collections
       context.handle(
         _accentMeta,
         accent.isAcceptableOrUnknown(data['accent']!, _accentMeta),
+      );
+    }
+    if (data.containsKey('parent_id')) {
+      context.handle(
+        _parentIdMeta,
+        parentId.isAcceptableOrUnknown(data['parent_id']!, _parentIdMeta),
       );
     }
     if (data.containsKey('created_at')) {
@@ -175,6 +193,10 @@ class $CollectionsTable extends Collections
         DriftSqlType.int,
         data['${effectivePrefix}accent'],
       )!,
+      parentId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}parent_id'],
+      ),
       createdAt: attachedDatabase.typeMapping.read(
         DriftSqlType.dateTime,
         data['${effectivePrefix}created_at'],
@@ -201,6 +223,7 @@ class CollectionEntry extends DataClass implements Insertable<CollectionEntry> {
   final String name;
   final String emoji;
   final int accent;
+  final String? parentId;
   final DateTime createdAt;
   final DateTime? updatedAt;
   final DateTime? deletedAt;
@@ -209,6 +232,7 @@ class CollectionEntry extends DataClass implements Insertable<CollectionEntry> {
     required this.name,
     required this.emoji,
     required this.accent,
+    this.parentId,
     required this.createdAt,
     this.updatedAt,
     this.deletedAt,
@@ -220,6 +244,9 @@ class CollectionEntry extends DataClass implements Insertable<CollectionEntry> {
     map['name'] = Variable<String>(name);
     map['emoji'] = Variable<String>(emoji);
     map['accent'] = Variable<int>(accent);
+    if (!nullToAbsent || parentId != null) {
+      map['parent_id'] = Variable<String>(parentId);
+    }
     map['created_at'] = Variable<DateTime>(createdAt);
     if (!nullToAbsent || updatedAt != null) {
       map['updated_at'] = Variable<DateTime>(updatedAt);
@@ -236,6 +263,9 @@ class CollectionEntry extends DataClass implements Insertable<CollectionEntry> {
       name: Value(name),
       emoji: Value(emoji),
       accent: Value(accent),
+      parentId: parentId == null && nullToAbsent
+          ? const Value.absent()
+          : Value(parentId),
       createdAt: Value(createdAt),
       updatedAt: updatedAt == null && nullToAbsent
           ? const Value.absent()
@@ -256,6 +286,7 @@ class CollectionEntry extends DataClass implements Insertable<CollectionEntry> {
       name: serializer.fromJson<String>(json['name']),
       emoji: serializer.fromJson<String>(json['emoji']),
       accent: serializer.fromJson<int>(json['accent']),
+      parentId: serializer.fromJson<String?>(json['parentId']),
       createdAt: serializer.fromJson<DateTime>(json['createdAt']),
       updatedAt: serializer.fromJson<DateTime?>(json['updatedAt']),
       deletedAt: serializer.fromJson<DateTime?>(json['deletedAt']),
@@ -269,6 +300,7 @@ class CollectionEntry extends DataClass implements Insertable<CollectionEntry> {
       'name': serializer.toJson<String>(name),
       'emoji': serializer.toJson<String>(emoji),
       'accent': serializer.toJson<int>(accent),
+      'parentId': serializer.toJson<String?>(parentId),
       'createdAt': serializer.toJson<DateTime>(createdAt),
       'updatedAt': serializer.toJson<DateTime?>(updatedAt),
       'deletedAt': serializer.toJson<DateTime?>(deletedAt),
@@ -280,6 +312,7 @@ class CollectionEntry extends DataClass implements Insertable<CollectionEntry> {
     String? name,
     String? emoji,
     int? accent,
+    Value<String?> parentId = const Value.absent(),
     DateTime? createdAt,
     Value<DateTime?> updatedAt = const Value.absent(),
     Value<DateTime?> deletedAt = const Value.absent(),
@@ -288,6 +321,7 @@ class CollectionEntry extends DataClass implements Insertable<CollectionEntry> {
     name: name ?? this.name,
     emoji: emoji ?? this.emoji,
     accent: accent ?? this.accent,
+    parentId: parentId.present ? parentId.value : this.parentId,
     createdAt: createdAt ?? this.createdAt,
     updatedAt: updatedAt.present ? updatedAt.value : this.updatedAt,
     deletedAt: deletedAt.present ? deletedAt.value : this.deletedAt,
@@ -298,6 +332,7 @@ class CollectionEntry extends DataClass implements Insertable<CollectionEntry> {
       name: data.name.present ? data.name.value : this.name,
       emoji: data.emoji.present ? data.emoji.value : this.emoji,
       accent: data.accent.present ? data.accent.value : this.accent,
+      parentId: data.parentId.present ? data.parentId.value : this.parentId,
       createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
       updatedAt: data.updatedAt.present ? data.updatedAt.value : this.updatedAt,
       deletedAt: data.deletedAt.present ? data.deletedAt.value : this.deletedAt,
@@ -311,6 +346,7 @@ class CollectionEntry extends DataClass implements Insertable<CollectionEntry> {
           ..write('name: $name, ')
           ..write('emoji: $emoji, ')
           ..write('accent: $accent, ')
+          ..write('parentId: $parentId, ')
           ..write('createdAt: $createdAt, ')
           ..write('updatedAt: $updatedAt, ')
           ..write('deletedAt: $deletedAt')
@@ -319,8 +355,16 @@ class CollectionEntry extends DataClass implements Insertable<CollectionEntry> {
   }
 
   @override
-  int get hashCode =>
-      Object.hash(id, name, emoji, accent, createdAt, updatedAt, deletedAt);
+  int get hashCode => Object.hash(
+    id,
+    name,
+    emoji,
+    accent,
+    parentId,
+    createdAt,
+    updatedAt,
+    deletedAt,
+  );
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
@@ -329,6 +373,7 @@ class CollectionEntry extends DataClass implements Insertable<CollectionEntry> {
           other.name == this.name &&
           other.emoji == this.emoji &&
           other.accent == this.accent &&
+          other.parentId == this.parentId &&
           other.createdAt == this.createdAt &&
           other.updatedAt == this.updatedAt &&
           other.deletedAt == this.deletedAt);
@@ -339,6 +384,7 @@ class CollectionsCompanion extends UpdateCompanion<CollectionEntry> {
   final Value<String> name;
   final Value<String> emoji;
   final Value<int> accent;
+  final Value<String?> parentId;
   final Value<DateTime> createdAt;
   final Value<DateTime?> updatedAt;
   final Value<DateTime?> deletedAt;
@@ -348,6 +394,7 @@ class CollectionsCompanion extends UpdateCompanion<CollectionEntry> {
     this.name = const Value.absent(),
     this.emoji = const Value.absent(),
     this.accent = const Value.absent(),
+    this.parentId = const Value.absent(),
     this.createdAt = const Value.absent(),
     this.updatedAt = const Value.absent(),
     this.deletedAt = const Value.absent(),
@@ -358,6 +405,7 @@ class CollectionsCompanion extends UpdateCompanion<CollectionEntry> {
     required String name,
     this.emoji = const Value.absent(),
     this.accent = const Value.absent(),
+    this.parentId = const Value.absent(),
     this.createdAt = const Value.absent(),
     this.updatedAt = const Value.absent(),
     this.deletedAt = const Value.absent(),
@@ -369,6 +417,7 @@ class CollectionsCompanion extends UpdateCompanion<CollectionEntry> {
     Expression<String>? name,
     Expression<String>? emoji,
     Expression<int>? accent,
+    Expression<String>? parentId,
     Expression<DateTime>? createdAt,
     Expression<DateTime>? updatedAt,
     Expression<DateTime>? deletedAt,
@@ -379,6 +428,7 @@ class CollectionsCompanion extends UpdateCompanion<CollectionEntry> {
       if (name != null) 'name': name,
       if (emoji != null) 'emoji': emoji,
       if (accent != null) 'accent': accent,
+      if (parentId != null) 'parent_id': parentId,
       if (createdAt != null) 'created_at': createdAt,
       if (updatedAt != null) 'updated_at': updatedAt,
       if (deletedAt != null) 'deleted_at': deletedAt,
@@ -391,6 +441,7 @@ class CollectionsCompanion extends UpdateCompanion<CollectionEntry> {
     Value<String>? name,
     Value<String>? emoji,
     Value<int>? accent,
+    Value<String?>? parentId,
     Value<DateTime>? createdAt,
     Value<DateTime?>? updatedAt,
     Value<DateTime?>? deletedAt,
@@ -401,6 +452,7 @@ class CollectionsCompanion extends UpdateCompanion<CollectionEntry> {
       name: name ?? this.name,
       emoji: emoji ?? this.emoji,
       accent: accent ?? this.accent,
+      parentId: parentId ?? this.parentId,
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
       deletedAt: deletedAt ?? this.deletedAt,
@@ -422,6 +474,9 @@ class CollectionsCompanion extends UpdateCompanion<CollectionEntry> {
     }
     if (accent.present) {
       map['accent'] = Variable<int>(accent.value);
+    }
+    if (parentId.present) {
+      map['parent_id'] = Variable<String>(parentId.value);
     }
     if (createdAt.present) {
       map['created_at'] = Variable<DateTime>(createdAt.value);
@@ -445,6 +500,7 @@ class CollectionsCompanion extends UpdateCompanion<CollectionEntry> {
           ..write('name: $name, ')
           ..write('emoji: $emoji, ')
           ..write('accent: $accent, ')
+          ..write('parentId: $parentId, ')
           ..write('createdAt: $createdAt, ')
           ..write('updatedAt: $updatedAt, ')
           ..write('deletedAt: $deletedAt, ')
@@ -4018,6 +4074,7 @@ typedef $$CollectionsTableCreateCompanionBuilder =
       required String name,
       Value<String> emoji,
       Value<int> accent,
+      Value<String?> parentId,
       Value<DateTime> createdAt,
       Value<DateTime?> updatedAt,
       Value<DateTime?> deletedAt,
@@ -4029,6 +4086,7 @@ typedef $$CollectionsTableUpdateCompanionBuilder =
       Value<String> name,
       Value<String> emoji,
       Value<int> accent,
+      Value<String?> parentId,
       Value<DateTime> createdAt,
       Value<DateTime?> updatedAt,
       Value<DateTime?> deletedAt,
@@ -4061,6 +4119,11 @@ class $$CollectionsTableFilterComposer
 
   ColumnFilters<int> get accent => $composableBuilder(
     column: $table.accent,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get parentId => $composableBuilder(
+    column: $table.parentId,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -4109,6 +4172,11 @@ class $$CollectionsTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
+  ColumnOrderings<String> get parentId => $composableBuilder(
+    column: $table.parentId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
   ColumnOrderings<DateTime> get createdAt => $composableBuilder(
     column: $table.createdAt,
     builder: (column) => ColumnOrderings(column),
@@ -4145,6 +4213,9 @@ class $$CollectionsTableAnnotationComposer
 
   GeneratedColumn<int> get accent =>
       $composableBuilder(column: $table.accent, builder: (column) => column);
+
+  GeneratedColumn<String> get parentId =>
+      $composableBuilder(column: $table.parentId, builder: (column) => column);
 
   GeneratedColumn<DateTime> get createdAt =>
       $composableBuilder(column: $table.createdAt, builder: (column) => column);
@@ -4191,6 +4262,7 @@ class $$CollectionsTableTableManager
                 Value<String> name = const Value.absent(),
                 Value<String> emoji = const Value.absent(),
                 Value<int> accent = const Value.absent(),
+                Value<String?> parentId = const Value.absent(),
                 Value<DateTime> createdAt = const Value.absent(),
                 Value<DateTime?> updatedAt = const Value.absent(),
                 Value<DateTime?> deletedAt = const Value.absent(),
@@ -4200,6 +4272,7 @@ class $$CollectionsTableTableManager
                 name: name,
                 emoji: emoji,
                 accent: accent,
+                parentId: parentId,
                 createdAt: createdAt,
                 updatedAt: updatedAt,
                 deletedAt: deletedAt,
@@ -4211,6 +4284,7 @@ class $$CollectionsTableTableManager
                 required String name,
                 Value<String> emoji = const Value.absent(),
                 Value<int> accent = const Value.absent(),
+                Value<String?> parentId = const Value.absent(),
                 Value<DateTime> createdAt = const Value.absent(),
                 Value<DateTime?> updatedAt = const Value.absent(),
                 Value<DateTime?> deletedAt = const Value.absent(),
@@ -4220,6 +4294,7 @@ class $$CollectionsTableTableManager
                 name: name,
                 emoji: emoji,
                 accent: accent,
+                parentId: parentId,
                 createdAt: createdAt,
                 updatedAt: updatedAt,
                 deletedAt: deletedAt,

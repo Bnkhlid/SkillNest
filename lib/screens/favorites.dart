@@ -26,17 +26,17 @@ class _FavoritesScreenState extends State<FavoritesScreen> {
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
     return Scaffold(
-      backgroundColor: NotedColors.canvasLight,
+      backgroundColor: scheme.surface,
       appBar: AppBar(
-        backgroundColor: NotedColors.canvasLight,
+        backgroundColor: scheme.surface,
         leading: Navigator.canPop(context)
             ? IconButton(
-                icon: const Icon(Icons.arrow_back_rounded, color: NotedColors.ink),
+                icon: Icon(Icons.arrow_back_rounded, color: scheme.onSurface),
                 tooltip: 'Back',
                 onPressed: () => Navigator.pop(context),
               )
             : null,
-        title: const Text('Favorites', style: TextStyle(color: NotedColors.ink, fontWeight: FontWeight.w800)),
+        title: Text('Favorites', style: TextStyle(color: scheme.onSurface, fontWeight: FontWeight.w800)),
       ),
       body: ListenableBuilder(
         listenable: Vault.I,

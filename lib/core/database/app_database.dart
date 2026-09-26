@@ -46,7 +46,7 @@ class AppDatabase extends _$AppDatabase {
   AppDatabase.forTesting(super.e);
 
   @override
-  int get schemaVersion => 5;
+  int get schemaVersion => 6;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -69,6 +69,9 @@ class AppDatabase extends _$AppDatabase {
         await m.addColumn(resources, resources.noteTitle);
         // Existing indexed records need the new note-title text too.
         await searchDao.rebuildIndex();
+      }
+      if (from < 6 && to >= 6) {
+        await m.addColumn(collections, collections.parentId);
       }
     },
     beforeOpen: (details) async {

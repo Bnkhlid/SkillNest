@@ -16,4 +16,15 @@ import UIKit
       with: engineBridge.pluginRegistry.registrar(forPlugin: "ShareBridgePlugin")
     )
   }
+
+  override func application(
+    _ app: UIApplication,
+    open url: URL,
+    options: [UIApplication.OpenURLOptionsKey: Any] = [:]
+  ) -> Bool {
+    if ShareBridgePlugin.handleIncomingUrl(url) {
+      return true
+    }
+    return super.application(app, open: url, options: options)
+  }
 }

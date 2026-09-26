@@ -63,6 +63,8 @@ class FirebaseRemoteConfigService {
         'latest_version': skillNestVersion,
         'minimum_supported_version': skillNestVersion,
         'update_url': '',
+        'update_url_ios': '',
+        'update_url_android': '',
         'update_message': 'A new version of SkillNest is available.',
         'force_update': false,
       });
@@ -88,6 +90,15 @@ class FirebaseRemoteConfigService {
 
   void _readValues() {
     final rc = _remoteConfig!;
+    String url = rc.getString('update_url').trim();
+    if (!kIsWeb && defaultTargetPlatform == TargetPlatform.iOS) {
+      final iosUrl = rc.getString('update_url_ios').trim();
+      if (iosUrl.isNotEmpty) url = iosUrl;
+    } else if (!kIsWeb && defaultTargetPlatform == TargetPlatform.android) {
+      final androidUrl = rc.getString('update_url_android').trim();
+      if (androidUrl.isNotEmpty) url = androidUrl;
+    }
+
     _info = UpdateInfo(
       currentVersion: skillNestVersion,
       latestVersion: rc.getString('latest_version').trim().isEmpty
@@ -96,7 +107,7 @@ class FirebaseRemoteConfigService {
       minimumVersion: rc.getString('minimum_supported_version').trim().isEmpty
           ? skillNestVersion
           : rc.getString('minimum_supported_version').trim(),
-      url: rc.getString('update_url').trim(),
+      url: url,
       message: rc.getString('update_message').trim().isEmpty
           ? 'A new version of SkillNest is available.'
           : rc.getString('update_message').trim(),

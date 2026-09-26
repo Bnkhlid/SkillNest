@@ -8,7 +8,7 @@ class ExternalLauncher {
     var target = rawUrl.trim();
     if (target.isEmpty) return false;
 
-    if (!target.startsWith('http://') && !target.startsWith('https://')) {
+    if (!target.startsWith('http://') && !target.startsWith('https://') && !target.startsWith('mailto:')) {
       target = 'https://$target';
     }
 

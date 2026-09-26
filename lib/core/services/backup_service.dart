@@ -156,6 +156,7 @@ class BackupService {
               'name': c.name,
               'emoji': c.emoji,
               'accent': c.accent,
+              'parentId': c.parentId,
               'createdAt': c.createdAt.toIso8601String(),
               'updatedAt': c.updatedAt?.toIso8601String(),
               'deletedAt': c.deletedAt?.toIso8601String(),

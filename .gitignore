@@ -46,5 +46,18 @@ app.*.map.json
 
 # APK and local build files
 *.apk
+*.aab
+# Android build outputs and logs
+/android/build/
+*.txt
+app_notifications.json
 app_preferences.json
 .gradle/
+
+# Android signing keys and local configuration
+key.properties
+**/android/key.properties
+*.jks
+*.keystore
+local.properties
+**/android/local.properties

@@ -98,9 +98,10 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
 
   Future<void> _finish() async {
     final name = _nameController.text.trim();
-    if (name.isNotEmpty) {
-      await Vault.I.setProfile(name, _emailController.text.trim());
-    }
+    await Vault.I.setProfile(
+      name.isNotEmpty ? name : 'Learner',
+      _emailController.text.trim(),
+    );
     if (!mounted) return;
     await Vault.I.completeFirstRun();
     if (!mounted) return;
@@ -123,7 +124,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
     final isLast = _page == _totalPages - 1;
 
     return Scaffold(
-      backgroundColor: NotedColors.canvasLight,
+      backgroundColor: Theme.of(context).colorScheme.surface,
       body: SafeArea(
         child: Column(
           children: [
@@ -283,7 +284,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                   final enteredName = _nameController.text.trim();
                   final initialLetter = enteredName.isNotEmpty
                       ? enteredName[0].toUpperCase()
-                      : 'M';
+                      : '👋';
 
                   return SingleChildScrollView(
                     padding: const EdgeInsets.symmetric(horizontal: Insets.l),

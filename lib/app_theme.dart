@@ -62,6 +62,39 @@ class NotedColors {
   static const Color surfaceDark = Color(0xFF1F1F1F);
   static const Color cardDark = Color(0xFF282828);
   static const Color borderDark = Color(0xFF383838);
+
+  static Color collectionAccent(int index) {
+    return switch (index % 6) {
+      0 => const Color(0xFFFFC107), // Amber/Yellow
+      1 => const Color(0xFF2EB872), // Emerald/Mint
+      2 => const Color(0xFFF06292), // Rose/Pink
+      3 => const Color(0xFFAB47BC), // Violet/Purple
+      4 => const Color(0xFF42A5F5), // Sky/Blue
+      _ => const Color(0xFFFF9800), // Orange/Peach
+    };
+  }
+
+  static Color pastelCard(int index, {required bool isDark}) {
+    if (!isDark) {
+      return switch (index % 6) {
+        0 => yellowLight,
+        1 => mintLight,
+        2 => pinkLight,
+        3 => purpleLight,
+        4 => blueLight,
+        _ => const Color(0xFFFDEED8),
+      };
+    } else {
+      return switch (index % 6) {
+        0 => const Color(0xFF332A18), // Warm Amber
+        1 => const Color(0xFF16352A), // Fresh Mint
+        2 => const Color(0xFF3A1C28), // Deep Rose
+        3 => const Color(0xFF281C3D), // Rich Violet
+        4 => const Color(0xFF162C44), // Midnight Blue
+        _ => const Color(0xFF382417), // Rich Peach
+      };
+    }
+  }
 }
 
 /// Neo-brutalist helper styles for decorative containers with crisp ink borders & flat offset shadows.
@@ -152,19 +185,19 @@ ColorScheme _lightScheme() => const ColorScheme(
 ColorScheme _darkScheme() => const ColorScheme(
       brightness: Brightness.dark,
       primary: NotedColors.yellow,
-      onPrimary: NotedColors.ink,
-      primaryContainer: Color(0xFF383220),
-      onPrimaryContainer: NotedColors.yellowHeader,
+      onPrimary: Colors.white,
+      primaryContainer: Color(0xFF352C16),
+      onPrimaryContainer: Colors.white,
       secondary: NotedColors.mint,
-      onSecondary: NotedColors.ink,
+      onSecondary: Colors.white,
       secondaryContainer: Color(0xFF1B3834),
-      onSecondaryContainer: NotedColors.mintLight,
+      onSecondaryContainer: Colors.white,
       tertiary: NotedColors.pink,
-      onTertiary: NotedColors.ink,
+      onTertiary: Colors.white,
       tertiaryContainer: Color(0xFF3D2321),
-      onTertiaryContainer: NotedColors.pinkLight,
+      onTertiaryContainer: Colors.white,
       error: Color(0xFFFF7A6B),
-      onError: Color(0xFF4A1009),
+      onError: Colors.white,
       errorContainer: Color(0xFF6E1810),
       onErrorContainer: Colors.white,
       surface: NotedColors.canvasDark,
@@ -177,8 +210,8 @@ ColorScheme _darkScheme() => const ColorScheme(
       surfaceContainerLowest: Color(0xFF121212),
       onInverseSurface: NotedColors.canvasDark,
       inverseSurface: Color(0xFFF5F2EB),
-      inversePrimary: NotedColors.ink,
-      outline: Color(0xFF6E6E6E),
+      inversePrimary: Colors.white,
+      outline: Color(0xFF555555),
       outlineVariant: Color(0xFF3A3A3A),
       shadow: Colors.black,
       scrim: Color(0x99000000),
@@ -192,7 +225,7 @@ ThemeData buildTheme(Brightness brightness) {
     useMaterial3: true,
     colorScheme: scheme,
     scaffoldBackgroundColor: scheme.surface,
-    splashFactory: InkSparkle.splashFactory,
+    splashFactory: InkRipple.splashFactory,
     visualDensity: VisualDensity.standard,
     materialTapTargetSize: MaterialTapTargetSize.padded,
 
@@ -231,19 +264,41 @@ ThemeData buildTheme(Brightness brightness) {
       style: ButtonStyle(
         backgroundColor: WidgetStateProperty.resolveWith((states) {
           if (states.contains(WidgetState.selected)) {
-            return NotedColors.yellow;
+            return isLight ? NotedColors.yellow : const Color(0xFF352C16);
           }
           return isLight ? Colors.white : scheme.surfaceContainer;
         }),
         foregroundColor: WidgetStateProperty.resolveWith((states) {
-          return NotedColors.ink;
+          if (states.contains(WidgetState.selected)) {
+            return isLight ? NotedColors.ink : Colors.white;
+          }
+          return isLight ? NotedColors.ink : scheme.onSurface;
         }),
         iconColor: WidgetStateProperty.resolveWith((states) {
-          return NotedColors.ink;
+          if (states.contains(WidgetState.selected)) {
+            return isLight ? NotedColors.ink : Colors.white;
+          }
+          return isLight ? NotedColors.ink : scheme.onSurface;
         }),
-        side: const WidgetStatePropertyAll(
-          BorderSide(color: NotedColors.border, width: 2),
-        ),
+        overlayColor: WidgetStateProperty.resolveWith((states) {
+          if (states.contains(WidgetState.pressed)) {
+            return (isLight ? NotedColors.ink : Colors.white).withValues(alpha: 0.08);
+          }
+          return Colors.transparent;
+        }),
+        splashFactory: InkRipple.splashFactory,
+        side: WidgetStateProperty.resolveWith((states) {
+          if (states.contains(WidgetState.selected)) {
+            return BorderSide(
+              color: isLight ? NotedColors.border : const Color(0xFFFFC107),
+              width: 2,
+            );
+          }
+          return BorderSide(
+            color: isLight ? NotedColors.border : scheme.outlineVariant,
+            width: 2,
+          );
+        }),
         textStyle: const WidgetStatePropertyAll(
           TextStyle(fontSize: 14, fontWeight: FontWeight.w700),
         ),
@@ -255,16 +310,17 @@ ThemeData buildTheme(Brightness brightness) {
 
     filledButtonTheme: FilledButtonThemeData(
       style: FilledButton.styleFrom(
-        backgroundColor: isLight ? NotedColors.ink : NotedColors.yellow,
-        foregroundColor: isLight ? Colors.white : NotedColors.ink,
+        backgroundColor: isLight ? NotedColors.ink : const Color(0xFF352C16),
+        foregroundColor: Colors.white,
         minimumSize: const Size(64, 48),
         elevation: 0,
         tapTargetSize: MaterialTapTargetSize.padded,
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(Radii.control),
-          side: isLight
-              ? const BorderSide(color: NotedColors.border, width: 2)
-              : BorderSide.none,
+          side: BorderSide(
+            color: isLight ? NotedColors.border : const Color(0xFFFFC107),
+            width: 2,
+          ),
         ),
         textStyle: const TextStyle(fontSize: 15, fontWeight: FontWeight.w700, letterSpacing: -0.2),
       ),
@@ -272,13 +328,16 @@ ThemeData buildTheme(Brightness brightness) {
 
     elevatedButtonTheme: ElevatedButtonThemeData(
       style: ElevatedButton.styleFrom(
-        backgroundColor: NotedColors.yellow,
-        foregroundColor: NotedColors.ink,
+        backgroundColor: isLight ? NotedColors.yellow : const Color(0xFF352C16),
+        foregroundColor: isLight ? NotedColors.ink : Colors.white,
         minimumSize: const Size(64, 48),
         elevation: 0,
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(Radii.control),
-          side: const BorderSide(color: NotedColors.border, width: 2),
+          side: BorderSide(
+            color: isLight ? NotedColors.border : const Color(0xFFFFC107),
+            width: 2,
+          ),
         ),
         textStyle: const TextStyle(fontSize: 15, fontWeight: FontWeight.w700),
       ),
@@ -287,11 +346,14 @@ ThemeData buildTheme(Brightness brightness) {
     outlinedButtonTheme: OutlinedButtonThemeData(
       style: OutlinedButton.styleFrom(
         backgroundColor: isLight ? Colors.white : scheme.surfaceContainer,
-        foregroundColor: isLight ? NotedColors.ink : scheme.onSurface,
+        foregroundColor: isLight ? NotedColors.ink : Colors.white,
         minimumSize: const Size(64, 48),
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(Radii.control),
-          side: const BorderSide(color: NotedColors.border, width: 2),
+          side: BorderSide(
+            color: isLight ? NotedColors.border : scheme.outlineVariant,
+            width: 2,
+          ),
         ),
         textStyle: const TextStyle(fontSize: 15, fontWeight: FontWeight.w700),
       ),
@@ -315,28 +377,43 @@ ThemeData buildTheme(Brightness brightness) {
     ),
 
     floatingActionButtonTheme: FloatingActionButtonThemeData(
-      backgroundColor: NotedColors.yellow,
-      foregroundColor: NotedColors.ink,
+      backgroundColor: isLight ? NotedColors.yellow : const Color(0xFF352C16),
+      foregroundColor: isLight ? NotedColors.ink : Colors.white,
       elevation: 0,
       highlightElevation: 0,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(20),
-        side: const BorderSide(color: NotedColors.border, width: 2.2),
+        side: BorderSide(
+          color: isLight ? NotedColors.border : const Color(0xFFFFC107),
+          width: 2.2,
+        ),
       ),
     ),
 
     chipTheme: ChipThemeData(
-      side: const BorderSide(color: NotedColors.border, width: 1.8),
+      side: BorderSide(
+        color: isLight ? NotedColors.border : scheme.outlineVariant,
+        width: 1.8,
+      ),
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-      backgroundColor: isLight ? Colors.white : scheme.surfaceContainer,
-      selectedColor: NotedColors.yellow,
+      backgroundColor: isLight ? Colors.white : scheme.surfaceContainerHigh,
+      selectedColor: isLight ? NotedColors.yellow : const Color(0xFF352C16),
+      secondarySelectedColor: isLight ? NotedColors.yellow : const Color(0xFF352C16),
       labelStyle: TextStyle(
         fontSize: 13,
         fontWeight: FontWeight.w700,
-        color: isLight ? NotedColors.ink : scheme.onSurface,
+        color: isLight ? NotedColors.ink : Colors.white,
       ),
-      iconTheme: IconThemeData(color: isLight ? NotedColors.ink : scheme.onSurface, size: 17),
-      checkmarkColor: NotedColors.ink,
+      secondaryLabelStyle: TextStyle(
+        fontSize: 13,
+        fontWeight: FontWeight.w800,
+        color: isLight ? NotedColors.ink : Colors.white,
+      ),
+      iconTheme: IconThemeData(
+        color: isLight ? NotedColors.ink : Colors.white,
+        size: 17,
+      ),
+      checkmarkColor: isLight ? NotedColors.ink : Colors.white,
       showCheckmark: false,
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
     ),
@@ -344,21 +421,30 @@ ThemeData buildTheme(Brightness brightness) {
     inputDecorationTheme: InputDecorationTheme(
       filled: true,
       fillColor: isLight ? Colors.white : scheme.surfaceContainerLow,
-      prefixIconColor: isLight ? NotedColors.ink : scheme.onSurface,
-      suffixIconColor: isLight ? NotedColors.ink : scheme.onSurface,
+      prefixIconColor: isLight ? NotedColors.ink : Colors.white,
+      suffixIconColor: isLight ? NotedColors.ink : Colors.white,
       hintStyle: TextStyle(color: isLight ? NotedColors.inkMuted : scheme.onSurfaceVariant.withValues(alpha: 0.6), fontSize: 14.5),
       contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
       border: OutlineInputBorder(
         borderRadius: BorderRadius.circular(Radii.control),
-        borderSide: const BorderSide(color: NotedColors.border, width: 2),
+        borderSide: BorderSide(
+          color: isLight ? NotedColors.border : scheme.outlineVariant,
+          width: 2,
+        ),
       ),
       enabledBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(Radii.control),
-        borderSide: const BorderSide(color: NotedColors.border, width: 2),
+        borderSide: BorderSide(
+          color: isLight ? NotedColors.border : scheme.outlineVariant,
+          width: 2,
+        ),
       ),
       focusedBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(Radii.control),
-        borderSide: const BorderSide(color: NotedColors.border, width: 2.5),
+        borderSide: BorderSide(
+          color: isLight ? NotedColors.border : const Color(0xFFFFC107),
+          width: 2.5,
+        ),
       ),
       errorBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(Radii.control),

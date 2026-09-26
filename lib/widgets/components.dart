@@ -1,6 +1,14 @@
+import 'dart:io';
+
+import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+import 'package:path/path.dart' as p;
+import 'package:path_provider/path_provider.dart';
 
 import '../app_theme.dart';
+import '../core/utils/external_launcher.dart';
+import '../main.dart' show RoutePaths;
 import '../models.dart';
 import '../vault.dart';
 
@@ -241,6 +249,7 @@ class NotedStickyCard extends StatelessWidget {
     this.color = NotedColors.yellow,
     this.onTap,
     this.onDelete,
+    this.onAddItem,
     this.width = 240,
   });
 
@@ -249,6 +258,7 @@ class NotedStickyCard extends StatelessWidget {
   final Color color;
   final VoidCallback? onTap;
   final VoidCallback? onDelete;
+  final VoidCallback? onAddItem;
   final double width;
 
   @override
@@ -287,6 +297,19 @@ class NotedStickyCard extends StatelessWidget {
                     ),
                   ),
                 ),
+                if (onAddItem != null)
+                  IconButton(
+                    onPressed: onAddItem,
+                    icon: const Icon(Icons.add_rounded, size: 20),
+                    color: NotedColors.ink,
+                    tooltip: 'Add item',
+                    padding: EdgeInsets.zero,
+                    constraints: const BoxConstraints(
+                      minWidth: 28,
+                      minHeight: 28,
+                    ),
+                    visualDensity: VisualDensity.compact,
+                  ),
                 if (onDelete != null)
                   IconButton(
                     onPressed: onDelete,
@@ -307,6 +330,7 @@ class NotedStickyCard extends StatelessWidget {
             child: SingleChildScrollView(
               padding: const EdgeInsets.fromLTRB(14, 8, 14, 12),
               child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: items.map((it) => _NotedItemRow(item: it)).toList(),
               ),
             ),
@@ -435,10 +459,11 @@ class LvIconBtn extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
     final btn = IconButton(
       onPressed: onTap,
       icon: Icon(icon, size: 22),
-      color: color ?? NotedColors.ink,
+      color: color ?? scheme.onSurface,
       tooltip: tooltip,
     );
     return btn;
@@ -453,11 +478,14 @@ class StatusChip extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
     final (bg, icon, fg) = switch (status) {
       ResourceStatus.unread => (
-        Colors.white,
+        isDark ? scheme.surfaceContainerHigh : Colors.white,
         Icons.circle_outlined,
-        NotedColors.inkMuted,
+        isDark ? scheme.onSurfaceVariant : NotedColors.inkMuted,
       ),
       ResourceStatus.inProgress => (
         NotedColors.yellow,
@@ -478,7 +506,10 @@ class StatusChip extends StatelessWidget {
       decoration: BoxDecoration(
         color: bg,
         borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: NotedColors.border, width: 1.5),
+        border: Border.all(
+          color: isDark ? scheme.outline : NotedColors.border,
+          width: 1.5,
+        ),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
@@ -509,15 +540,23 @@ class LvThumb extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final bg = _thumbColor(item.accent);
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final scheme = Theme.of(context).colorScheme;
+    final bg = NotedColors.pastelCard(item.accent, isDark: isDark);
+    final accentColor = NotedColors.collectionAccent(item.accent);
     final fileIcon = _fileIcon(item.localFile?.fileExtension);
     return Container(
       width: size,
       height: size,
       decoration: BoxDecoration(
-        color: item.fetching ? const Color(0xFFE5DFD1) : bg,
+        color: item.fetching
+            ? (isDark ? scheme.surfaceContainerHigh : const Color(0xFFE5DFD1))
+            : bg,
         borderRadius: BorderRadius.circular(radius ?? Radii.thumb),
-        border: Border.all(color: NotedColors.border, width: 1.8),
+        border: Border.all(
+          color: isDark ? accentColor.withValues(alpha: 0.45) : NotedColors.border,
+          width: 1.8,
+        ),
       ),
       alignment: Alignment.center,
       child: item.fetching
@@ -525,7 +564,7 @@ class LvThumb extends StatelessWidget {
           : Icon(
               fileIcon ?? item.kind.icon,
               size: size * 0.46,
-              color: NotedColors.ink,
+              color: isDark ? accentColor : NotedColors.ink,
             ),
     );
   }
@@ -566,18 +605,6 @@ class LvThumb extends StatelessWidget {
             : Icons.insert_drive_file_outlined;
     }
   }
-
-  Color _thumbColor(int i) {
-    final list = [
-      NotedColors.yellow,
-      NotedColors.mint,
-      NotedColors.pink,
-      NotedColors.yellowLight,
-      NotedColors.mintLight,
-      NotedColors.pinkLight,
-    ];
-    return list[i % list.length];
-  }
 }
 
 class SectionHeader extends StatelessWidget {
@@ -589,6 +616,8 @@ class SectionHeader extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    final isLight = Theme.of(context).brightness == Brightness.light;
     return Padding(
       padding: const EdgeInsets.only(left: 2, right: 2, bottom: 12),
       child: Row(
@@ -596,11 +625,11 @@ class SectionHeader extends StatelessWidget {
           Expanded(
             child: Text(
               title,
-              style: const TextStyle(
+              style: TextStyle(
                 fontSize: 18,
                 fontWeight: FontWeight.w800,
                 letterSpacing: -0.4,
-                color: NotedColors.ink,
+                color: scheme.onSurface,
               ),
             ),
           ),
@@ -616,16 +645,19 @@ class SectionHeader extends StatelessWidget {
                     vertical: 5,
                   ),
                   decoration: BoxDecoration(
-                    color: Colors.white,
+                    color: isLight ? Colors.white : scheme.surfaceContainerHigh,
                     borderRadius: BorderRadius.circular(20),
-                    border: Border.all(color: NotedColors.border, width: 1.6),
+                    border: Border.all(
+                      color: isLight ? NotedColors.border : scheme.outline,
+                      width: 1.6,
+                    ),
                   ),
                   child: Text(
                     actionLabel!,
-                    style: const TextStyle(
+                    style: TextStyle(
                       fontSize: 12.5,
                       fontWeight: FontWeight.w700,
-                      color: NotedColors.ink,
+                      color: scheme.onSurface,
                     ),
                   ),
                 ),
@@ -714,12 +746,16 @@ class ResourceTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final isFav = item.favorite;
+    final scheme = Theme.of(context).colorScheme;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
 
     if (item.fetching) return const SkeletonTile();
 
     return Container(
       decoration: NotedBox.card(
-        color: Colors.white,
+        color: isDark ? scheme.surfaceContainerLowest : Colors.white,
+        borderColor: isDark ? scheme.outlineVariant : NotedColors.border,
+        shadowColor: isDark ? Colors.black : NotedColors.shadow,
         radius: 16,
         shadow: true,
         shadowOffset: const Offset(2.5, 3.5),
@@ -729,9 +765,12 @@ class ResourceTile extends StatelessWidget {
         color: Colors.transparent,
         child: InkWell(
           onTap: selectMode ? onToggleSelect : onOpen,
-          onLongPress: onToggleSelect != null && !selectMode
+          onLongPress: selectMode
               ? onToggleSelect
-              : null,
+              : () {
+                  HapticFeedback.mediumImpact();
+                  showResourceQuickPeekSheet(context, item, onOpen: onOpen);
+                },
           child: Opacity(
             opacity: dimmed ? 0.45 : 1,
             child: Padding(
@@ -758,11 +797,11 @@ class ResourceTile extends StatelessWidget {
                           item.title,
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
-                          style: const TextStyle(
+                          style: TextStyle(
                             fontSize: 14.5,
                             fontWeight: FontWeight.w700,
                             letterSpacing: -0.2,
-                            color: NotedColors.ink,
+                            color: scheme.onSurface,
                           ),
                         ),
                         const SizedBox(height: 3),
@@ -770,10 +809,10 @@ class ResourceTile extends StatelessWidget {
                           subtitleOverride ?? _metaLine(),
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
-                          style: const TextStyle(
+                          style: TextStyle(
                             fontSize: 12,
                             fontWeight: FontWeight.w500,
-                            color: NotedColors.inkMuted,
+                            color: scheme.onSurfaceVariant,
                           ),
                         ),
                       ],
@@ -800,7 +839,7 @@ class ResourceTile extends StatelessWidget {
                         minWidth: 32,
                         minHeight: 32,
                       ),
-                      color: NotedColors.ink,
+                      color: scheme.onSurface,
                       tooltip: 'More',
                       onPressed: () =>
                           showCardMenuSheet(context, item, onOpen: onOpen),
@@ -841,6 +880,388 @@ class _StarIcon extends StatelessWidget {
   }
 }
 
+void showResourceQuickPeekSheet(
+  BuildContext context,
+  ResourceItem item, {
+  VoidCallback? onOpen,
+}) {
+  final isDark = Theme.of(context).brightness == Brightness.dark;
+  final scheme = Theme.of(context).colorScheme;
+  final accentBg = NotedColors.pastelCard(item.accent, isDark: isDark);
+  final accentColor = NotedColors.collectionAccent(item.accent);
+
+  showModalBottomSheet<void>(
+    context: context,
+    isScrollControlled: true,
+    backgroundColor: Colors.transparent,
+    builder: (ctx) => StatefulBuilder(
+      builder: (ctx, setModalState) {
+        final current = Vault.I.find(item.id) ?? item;
+        final col = current.collectionId != null
+            ? Vault.I.collections
+                .where((c) => c.id == current.collectionId)
+                .firstOrNull
+            : null;
+
+        return Container(
+          decoration: BoxDecoration(
+            color: isDark ? scheme.surfaceContainerLow : Colors.white,
+            borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
+            border: Border.all(
+              color: isDark ? scheme.outlineVariant : NotedColors.border,
+              width: 2.2,
+            ),
+          ),
+          padding: EdgeInsets.fromLTRB(
+            20,
+            12,
+            20,
+            MediaQuery.of(ctx).padding.bottom + 20,
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // Drag handle
+              Center(
+                child: Container(
+                  width: 44,
+                  height: 5,
+                  decoration: BoxDecoration(
+                    color: isDark ? scheme.outlineVariant : const Color(0xFFD4CDC0),
+                    borderRadius: BorderRadius.circular(3),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 16),
+
+              // Header Card
+              Container(
+                padding: const EdgeInsets.all(14),
+                decoration: BoxDecoration(
+                  color: accentBg,
+                  borderRadius: BorderRadius.circular(18),
+                  border: Border.all(
+                    color: isDark ? accentColor.withValues(alpha: 0.5) : NotedColors.border,
+                    width: 2,
+                  ),
+                ),
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    LvThumb(item: current, size: 48, radius: 12),
+                    const SizedBox(width: 14),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            current.title,
+                            maxLines: 2,
+                            overflow: TextOverflow.ellipsis,
+                            style: TextStyle(
+                              fontSize: 15.5,
+                              fontWeight: FontWeight.w800,
+                              height: 1.25,
+                              color: scheme.onSurface,
+                            ),
+                          ),
+                          const SizedBox(height: 6),
+                          Row(
+                            children: [
+                              Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
+                                decoration: BoxDecoration(
+                                  color: isDark ? scheme.surfaceContainerHigh : Colors.white,
+                                  borderRadius: BorderRadius.circular(8),
+                                  border: Border.all(
+                                    color: isDark ? scheme.outlineVariant : NotedColors.border,
+                                    width: 1.2,
+                                  ),
+                                ),
+                                child: Text(
+                                  current.kind.label.toUpperCase(),
+                                  style: TextStyle(
+                                    fontSize: 10,
+                                    fontWeight: FontWeight.w800,
+                                    color: isDark ? accentColor : NotedColors.ink,
+                                  ),
+                                ),
+                              ),
+                              if (current.source.isNotEmpty) ...[
+                                const SizedBox(width: 8),
+                                Expanded(
+                                  child: Text(
+                                    current.source,
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                    style: TextStyle(
+                                      fontSize: 12,
+                                      fontWeight: FontWeight.w600,
+                                      color: scheme.onSurfaceVariant,
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ],
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 16),
+
+              // Status Switcher
+              Row(
+                children: [
+                  Text(
+                    'Status:',
+                    style: TextStyle(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w700,
+                      color: scheme.onSurfaceVariant,
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Wrap(
+                      spacing: 6,
+                      children: ResourceStatus.values.map((st) {
+                        final isSel = current.status == st;
+                        return InkWell(
+                          onTap: () async {
+                            await Vault.I.setStatus(current.id, st);
+                            setModalState(() {});
+                          },
+                          borderRadius: BorderRadius.circular(10),
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 5),
+                            decoration: BoxDecoration(
+                              color: isSel
+                                  ? (isDark ? accentColor.withValues(alpha: 0.3) : NotedColors.yellow)
+                                  : (isDark ? scheme.surfaceContainerHigh : Colors.white),
+                              borderRadius: BorderRadius.circular(10),
+                              border: Border.all(
+                                color: isSel ? NotedColors.border : (isDark ? scheme.outlineVariant : const Color(0xFFE5DFD1)),
+                                width: isSel ? 1.6 : 1.2,
+                              ),
+                            ),
+                            child: Text(
+                              st.label,
+                              style: TextStyle(
+                                fontSize: 11,
+                                fontWeight: isSel ? FontWeight.w800 : FontWeight.w600,
+                                color: scheme.onSurface,
+                              ),
+                            ),
+                          ),
+                        );
+                      }).toList(),
+                    ),
+                  ),
+                ],
+              ),
+
+              if (col != null) ...[
+                const SizedBox(height: 12),
+                Row(
+                  children: [
+                    Text(
+                      'Collection:',
+                      style: TextStyle(
+                        fontSize: 13,
+                        fontWeight: FontWeight.w700,
+                        color: scheme.onSurfaceVariant,
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 4),
+                      decoration: BoxDecoration(
+                        color: isDark ? scheme.surfaceContainerHigh : Colors.white,
+                        borderRadius: BorderRadius.circular(8),
+                        border: Border.all(
+                          color: isDark ? scheme.outlineVariant : NotedColors.border,
+                          width: 1.2,
+                        ),
+                      ),
+                      child: Text(
+                        '${col.emoji} ${col.name}',
+                        style: TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w700,
+                          color: scheme.onSurface,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+
+              // Tags
+              if (current.tags.isNotEmpty) ...[
+                const SizedBox(height: 12),
+                Wrap(
+                  spacing: 6,
+                  runSpacing: 6,
+                  children: current.tags.map((t) => Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                    decoration: BoxDecoration(
+                      color: isDark ? scheme.surfaceContainerHigh : const Color(0xFFF3EFE6),
+                      borderRadius: BorderRadius.circular(6),
+                    ),
+                    child: Text(
+                      '#$t',
+                      style: TextStyle(
+                        fontSize: 11,
+                        fontWeight: FontWeight.w600,
+                        color: scheme.onSurfaceVariant,
+                      ),
+                    ),
+                  )).toList(),
+                ),
+              ],
+
+              // Note preview if present
+              if (current.note.trim().isNotEmpty) ...[
+                const SizedBox(height: 12),
+                Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: isDark ? scheme.surfaceContainerHigh : NotedColors.yellowLight,
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(
+                      color: isDark ? scheme.outlineVariant : NotedColors.border,
+                      width: 1.2,
+                    ),
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          Icon(Icons.sticky_note_2_outlined, size: 15, color: scheme.onSurface),
+                          const SizedBox(width: 6),
+                          Text(
+                            'Quick Note',
+                            style: TextStyle(
+                              fontSize: 12,
+                              fontWeight: FontWeight.w800,
+                              color: scheme.onSurface,
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        current.note.trim(),
+                        maxLines: 3,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(
+                          fontSize: 12.5,
+                          height: 1.35,
+                          color: scheme.onSurface,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+
+              const SizedBox(height: 20),
+
+              // Action Buttons Row
+              Row(
+                children: [
+                  Expanded(
+                    child: ElevatedButton.icon(
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: NotedColors.yellow,
+                        foregroundColor: NotedColors.ink,
+                        padding: const EdgeInsets.symmetric(vertical: 12),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(14),
+                          side: const BorderSide(color: NotedColors.border, width: 2),
+                        ),
+                        elevation: 0,
+                      ),
+                      icon: const Icon(Icons.menu_book_rounded, size: 18),
+                      label: const Text(
+                        'Full Details',
+                        style: TextStyle(fontWeight: FontWeight.w800, fontSize: 13.5),
+                      ),
+                      onPressed: () {
+                        Navigator.pop(ctx);
+                        if (onOpen != null) {
+                          onOpen();
+                        } else {
+                          Navigator.pushNamed(context, RoutePaths.details, arguments: current.id);
+                        }
+                      },
+                    ),
+                  ),
+                  if (current.url.isNotEmpty) ...[
+                    const SizedBox(width: 10),
+                    ElevatedButton(
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: isDark ? scheme.surfaceContainerHigh : Colors.white,
+                        foregroundColor: scheme.onSurface,
+                        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(14),
+                          side: BorderSide(
+                            color: isDark ? scheme.outlineVariant : NotedColors.border,
+                            width: 1.8,
+                          ),
+                        ),
+                        elevation: 0,
+                      ),
+                      onPressed: () async {
+                        Navigator.pop(ctx);
+                        await ExternalLauncher.openUrl(current.url);
+                      },
+                      child: const Row(
+                        children: [
+                          Icon(Icons.open_in_browser_rounded, size: 18),
+                          SizedBox(width: 6),
+                          Text('Open', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 13)),
+                        ],
+                      ),
+                    ),
+                  ],
+                  const SizedBox(width: 8),
+                  IconButton(
+                    style: IconButton.styleFrom(
+                      backgroundColor: isDark ? scheme.surfaceContainerHigh : Colors.white,
+                      side: BorderSide(
+                        color: isDark ? scheme.outlineVariant : NotedColors.border,
+                        width: 1.8,
+                      ),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                    ),
+                    icon: Icon(
+                      current.favorite ? Icons.star_rounded : Icons.star_outline_rounded,
+                      color: current.favorite ? const Color(0xFFE2A62D) : scheme.onSurface,
+                    ),
+                    tooltip: current.favorite ? 'Unfavorite' : 'Favorite',
+                    onPressed: () {
+                      Vault.I.toggleFavorite(current.id);
+                      setModalState(() {});
+                    },
+                  ),
+                ],
+              ),
+            ],
+          ),
+        );
+      },
+    ),
+  );
+}
+
 void showCardMenuSheet(
   BuildContext context,
   ResourceItem item, {
@@ -854,8 +1275,16 @@ void showCardMenuSheet(
       mainAxisSize: MainAxisSize.min,
       children: [
         LvSheetAction(
+          icon: Icons.remove_red_eye_outlined,
+          label: 'Quick Preview',
+          onTap: () {
+            Navigator.pop(ctx);
+            showResourceQuickPeekSheet(context, item, onOpen: onOpen);
+          },
+        ),
+        LvSheetAction(
           icon: Icons.open_in_new_rounded,
-          label: 'Open',
+          label: 'Open Details',
           onTap: () {
             Navigator.pop(ctx);
             onOpen?.call();
@@ -875,6 +1304,14 @@ void showCardMenuSheet(
           onTap: () {
             Navigator.pop(ctx);
             showMoveSheet(context, item);
+          },
+        ),
+        LvSheetAction(
+          icon: Icons.edit_outlined,
+          label: 'Rename…',
+          onTap: () {
+            Navigator.pop(ctx);
+            promptRenameResource(context, item);
           },
         ),
         LvSheetAction(
@@ -899,6 +1336,72 @@ void showCardMenuSheet(
   );
 }
 
+Future<void> promptRenameResource(
+  BuildContext context,
+  ResourceItem item,
+) async {
+  final controller = TextEditingController(text: item.title);
+  final formKey = GlobalKey<FormState>();
+  final res = await showDialog<String>(
+    context: context,
+    builder: (ctx) {
+      final scheme = Theme.of(ctx).colorScheme;
+      final isDark = Theme.of(ctx).brightness == Brightness.dark;
+      return AlertDialog(
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(Radii.dialog),
+          side: BorderSide(
+            color: isDark ? scheme.outlineVariant : NotedColors.border,
+            width: 1.8,
+          ),
+        ),
+        title: const Text(
+          'Rename Source',
+          style: TextStyle(fontWeight: FontWeight.w800, fontSize: 18),
+        ),
+        content: Form(
+          key: formKey,
+          child: TextFormField(
+            controller: controller,
+            autofocus: true,
+            textCapitalization: TextCapitalization.sentences,
+            decoration: const InputDecoration(
+              labelText: 'Source Name',
+              hintText: 'Enter new name',
+            ),
+            validator: (v) =>
+                (v == null || v.trim().isEmpty) ? 'Name cannot be empty' : null,
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            onPressed: () {
+              if (formKey.currentState?.validate() ?? false) {
+                Navigator.pop(ctx, controller.text.trim());
+              }
+            },
+            child: const Text('Save'),
+          ),
+        ],
+      );
+    },
+  );
+  if (res != null && res.isNotEmpty && res != item.title) {
+    await Vault.I.renameResource(item.id, res);
+    if (context.mounted) {
+      LvSnackbar.show(
+        context,
+        'Source renamed',
+        icon: Icons.check_circle_outline_rounded,
+      );
+    }
+  }
+}
+
 String _timeAgo(DateTime d) {
   final diff = DateTime.now().difference(d);
   if (diff.inMinutes < 60) return 'just now';
@@ -920,11 +1423,9 @@ class ContinueCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     if (item.fetching) return const SkeletonContinueCard();
-    final cardColor = switch (item.accent % 3) {
-      0 => NotedColors.yellowLight,
-      1 => NotedColors.mintLight,
-      _ => NotedColors.pinkLight,
-    };
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final scheme = Theme.of(context).colorScheme;
+    final cardColor = NotedColors.pastelCard(item.accent, isDark: isDark);
 
     return Container(
       width: 270,
@@ -934,6 +1435,10 @@ class ContinueCard extends StatelessWidget {
         color: Colors.transparent,
         child: InkWell(
           onTap: onOpen,
+          onLongPress: () {
+            HapticFeedback.mediumImpact();
+            showResourceQuickPeekSheet(context, item, onOpen: onOpen);
+          },
           child: Padding(
             padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
             child: Column(
@@ -949,12 +1454,12 @@ class ContinueCard extends StatelessWidget {
                         item.title,
                         maxLines: 2,
                         overflow: TextOverflow.ellipsis,
-                        style: const TextStyle(
+                        style: TextStyle(
                           fontSize: 14,
                           fontWeight: FontWeight.w800,
                           letterSpacing: -0.2,
                           height: 1.25,
-                          color: NotedColors.ink,
+                          color: scheme.onSurface,
                         ),
                       ),
                     ),
@@ -968,10 +1473,10 @@ class ContinueCard extends StatelessWidget {
                 const SizedBox(height: 8),
                 Text(
                   item.source.isEmpty ? item.kind.label : item.source,
-                  style: const TextStyle(
+                  style: TextStyle(
                     fontSize: 11.5,
                     fontWeight: FontWeight.w600,
-                    color: NotedColors.inkMuted,
+                    color: isDark ? scheme.onSurfaceVariant : NotedColors.inkMuted,
                   ),
                 ),
                 const SizedBox(height: 8),
@@ -981,10 +1486,10 @@ class ContinueCard extends StatelessWidget {
                       child: Container(
                         height: 7,
                         decoration: BoxDecoration(
-                          color: Colors.white,
+                          color: isDark ? scheme.surfaceContainerHighest : Colors.white,
                           borderRadius: BorderRadius.circular(4),
                           border: Border.all(
-                            color: NotedColors.border,
+                            color: isDark ? scheme.outlineVariant : NotedColors.border,
                             width: 1.2,
                           ),
                         ),
@@ -1003,10 +1508,10 @@ class ContinueCard extends StatelessWidget {
                     const SizedBox(width: 8),
                     Text(
                       '${(_progressOf(item) * 100).round()}%',
-                      style: const TextStyle(
+                      style: TextStyle(
                         fontSize: 12,
                         fontWeight: FontWeight.w800,
-                        color: NotedColors.ink,
+                        color: scheme.onSurface,
                       ),
                     ),
                     const SizedBox(width: 4),
@@ -1017,7 +1522,7 @@ class ContinueCard extends StatelessWidget {
                         minWidth: 32,
                         minHeight: 32,
                       ),
-                      color: NotedColors.ink,
+                      color: scheme.onSurface,
                       tooltip: 'More',
                       onPressed: () =>
                           showCardMenuSheet(context, item, onOpen: onOpen),
@@ -1060,23 +1565,24 @@ class CollectionCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final subs = Vault.I.subCollections(collection.id);
     final items = Vault.I.byCollection(collection.id);
     final done = items
         .where((e) => e.status == ResourceStatus.completed)
         .length;
     final progress = items.isEmpty ? 0.0 : done / items.length;
 
-    final cardColor = switch (collection.accent % 6) {
-      0 => NotedColors.yellowLight,
-      1 => NotedColors.mintLight,
-      2 => NotedColors.pinkLight,
-      3 => NotedColors.purpleLight,
-      4 => NotedColors.blueLight,
-      _ => const Color(0xFFFDEED8),
-    };
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final scheme = Theme.of(context).colorScheme;
+    final cardColor = NotedColors.pastelCard(collection.accent, isDark: isDark);
+    final accentColor = NotedColors.collectionAccent(collection.accent);
 
     return Container(
-      decoration: NotedBox.card(color: cardColor, radius: 18),
+      decoration: NotedBox.card(
+        color: cardColor,
+        radius: 18,
+        borderColor: isDark ? accentColor.withValues(alpha: 0.4) : NotedColors.border,
+      ),
       clipBehavior: Clip.antiAlias,
       child: Material(
         color: Colors.transparent,
@@ -1093,9 +1599,12 @@ class CollectionCard extends StatelessWidget {
                       width: 42,
                       height: 42,
                       decoration: BoxDecoration(
-                        color: Colors.white,
+                        color: isDark ? scheme.surfaceContainerHigh : Colors.white,
                         borderRadius: BorderRadius.circular(Radii.thumb),
-                        border: Border.all(color: NotedColors.border, width: 2),
+                        border: Border.all(
+                          color: isDark ? accentColor.withValues(alpha: 0.5) : NotedColors.border,
+                          width: 2,
+                        ),
                       ),
                       alignment: Alignment.center,
                       child: Text(
@@ -1111,7 +1620,7 @@ class CollectionCard extends StatelessWidget {
                         minWidth: 32,
                         minHeight: 32,
                       ),
-                      color: NotedColors.ink,
+                      color: scheme.onSurface,
                       tooltip: 'Collection options',
                       onPressed: onMore,
                     ),
@@ -1122,20 +1631,20 @@ class CollectionCard extends StatelessWidget {
                   collection.name,
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(
+                  style: TextStyle(
                     fontSize: 16,
                     fontWeight: FontWeight.w800,
                     letterSpacing: -0.2,
-                    color: NotedColors.ink,
+                    color: scheme.onSurface,
                   ),
                 ),
                 const SizedBox(height: 3),
                 Text(
-                  '${items.length} item${items.length == 1 ? '' : 's'}',
-                  style: const TextStyle(
+                  '${items.length} item${items.length == 1 ? '' : 's'}${subs.isNotEmpty ? ' · ${subs.length} sub' : ''}',
+                  style: TextStyle(
                     fontSize: 12.5,
                     fontWeight: FontWeight.w600,
-                    color: NotedColors.inkMuted,
+                    color: isDark ? scheme.onSurfaceVariant : NotedColors.inkMuted,
                   ),
                 ),
                 const SizedBox(height: 10),
@@ -1145,10 +1654,10 @@ class CollectionCard extends StatelessWidget {
                       child: Container(
                         height: 6,
                         decoration: BoxDecoration(
-                          color: Colors.white,
+                          color: isDark ? scheme.surfaceContainerHighest : Colors.white,
                           borderRadius: BorderRadius.circular(3),
                           border: Border.all(
-                            color: NotedColors.border,
+                            color: isDark ? scheme.outlineVariant : NotedColors.border,
                             width: 1.2,
                           ),
                         ),
@@ -1157,8 +1666,8 @@ class CollectionCard extends StatelessWidget {
                           child: LinearProgressIndicator(
                             value: progress,
                             backgroundColor: Colors.transparent,
-                            valueColor: const AlwaysStoppedAnimation(
-                              NotedColors.mint,
+                            valueColor: AlwaysStoppedAnimation(
+                              isDark ? accentColor : NotedColors.mint,
                             ),
                           ),
                         ),
@@ -1167,10 +1676,10 @@ class CollectionCard extends StatelessWidget {
                     const SizedBox(width: 8),
                     Text(
                       '${(progress * 100).round()}%',
-                      style: const TextStyle(
+                      style: TextStyle(
                         fontSize: 11.5,
                         fontWeight: FontWeight.w800,
-                        color: NotedColors.ink,
+                        color: scheme.onSurface,
                       ),
                     ),
                   ],
@@ -1311,7 +1820,7 @@ class EmptyState extends StatelessWidget {
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
     return Center(
-      child: Padding(
+      child: SingleChildScrollView(
         padding: const EdgeInsets.all(Radii.sheet),
         child: Column(
           mainAxisSize: MainAxisSize.min,
@@ -1940,3 +2449,61 @@ class ProgressRing extends StatelessWidget {
     );
   }
 }
+
+Future<void> promptAvatarPicker(BuildContext context) async {
+  final vault = Vault.I;
+  final scheme = Theme.of(context).colorScheme;
+
+  await LvSheet.show<void>(
+    context,
+    title: 'Profile Photo',
+    subtitle: 'Personalize your SkillNest avatar',
+    builder: (sheetCtx) => Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        LvSheetAction(
+          icon: Icons.photo_library_outlined,
+          label: 'Choose from gallery',
+          onTap: () async {
+            Navigator.pop(sheetCtx);
+            try {
+              final files = await FilePickerPlatform.instance.pickFiles(
+                type: FileType.image,
+              );
+              if (files.isNotEmpty && files.first.path != null) {
+                final origFile = File(files.first.path!);
+                final appDocDir = await getApplicationDocumentsDirectory();
+                final dir = Directory(p.join(appDocDir.path, 'skillnest'));
+                if (!await dir.exists()) {
+                  await dir.create(recursive: true);
+                }
+                final ext = p.extension(origFile.path).isNotEmpty
+                    ? p.extension(origFile.path)
+                    : '.jpg';
+                final newPath = p.join(
+                  dir.path,
+                  'user_avatar_${DateTime.now().millisecondsSinceEpoch}$ext',
+                );
+                await origFile.copy(newPath);
+                await vault.setUserAvatar(newPath);
+              }
+            } catch (e) {
+              debugPrint('Error picking avatar: $e');
+            }
+          },
+        ),
+        if (vault.userAvatarPath != null && vault.userAvatarPath!.isNotEmpty)
+          LvSheetAction(
+            icon: Icons.delete_outline_rounded,
+            label: 'Remove photo',
+            foreground: scheme.error,
+            onTap: () async {
+              Navigator.pop(sheetCtx);
+              await vault.setUserAvatar(null);
+            },
+          ),
+      ],
+    ),
+  );
+}
+

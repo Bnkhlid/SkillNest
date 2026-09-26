@@ -2,9 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../app_theme.dart';
 import '../core/services/share_service.dart';
-import '../main.dart';
 import '../vault.dart';
-import 'add_resource.dart';
 import 'onboarding.dart';
 import 'root_shell.dart';
 
@@ -40,7 +38,7 @@ class _SplashScreenState extends State<SplashScreen>
   }
 
   Future<void> _continueToApp({required bool skipAnimation}) async {
-    final sharedUrl = await ShareService.instance.checkInitialShare();
+    await ShareService.instance.checkInitialShare();
     if (!skipAnimation) {
       await Future.delayed(const Duration(milliseconds: 1450));
     }
@@ -51,14 +49,6 @@ class _SplashScreenState extends State<SplashScreen>
             Vault.I.firstRunDone ? const RootShell() : const OnboardingScreen(),
       ),
     );
-    if (sharedUrl != null &&
-        sharedUrl.isNotEmpty &&
-        appNavigatorKey.currentState != null) {
-      appNavigatorKey.currentState!.pushNamed(
-        RoutePaths.add,
-        arguments: AddArgs(initialUrl: sharedUrl),
-      );
-    }
   }
 
   @override

@@ -1,3 +1,6 @@
+import 'dart:async';
+import 'dart:io';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
@@ -30,15 +33,18 @@ class _HomeScreenState extends State<HomeScreen> {
   void _showCreateStickyNote(BuildContext context) {
     final titleCtrl = TextEditingController();
     final itemsCtrl = TextEditingController();
-    Color selectedColor = NotedColors.yellowLight;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final scheme = Theme.of(context).colorScheme;
+    Color selectedColor =
+        isDark ? NotedColors.pastelCard(0, isDark: true) : NotedColors.yellowLight;
     bool isBullet = false;
 
     final colors = [
-      ('Yellow', NotedColors.yellowLight),
-      ('Pink', NotedColors.pinkCard),
-      ('Mint', NotedColors.mintCard),
-      ('Purple', NotedColors.purpleLight),
-      ('Blue', NotedColors.blueLight),
+      ('Yellow', isDark ? NotedColors.pastelCard(0, isDark: true) : NotedColors.yellowLight),
+      ('Pink', isDark ? NotedColors.pastelCard(2, isDark: true) : NotedColors.pinkCard),
+      ('Mint', isDark ? NotedColors.pastelCard(1, isDark: true) : NotedColors.mintCard),
+      ('Purple', isDark ? NotedColors.pastelCard(3, isDark: true) : NotedColors.purpleLight),
+      ('Blue', isDark ? NotedColors.pastelCard(4, isDark: true) : NotedColors.blueLight),
     ];
 
     showDialog(
@@ -53,14 +59,18 @@ class _HomeScreenState extends State<HomeScreen> {
             ),
             shape: RoundedRectangleBorder(
               borderRadius: BorderRadius.circular(20),
-              side: const BorderSide(color: NotedColors.border, width: 2.2),
+              side: BorderSide(
+                color: isDark ? scheme.outlineVariant : NotedColors.border,
+                width: 2.2,
+              ),
             ),
-            backgroundColor: Colors.white,
-            title: const Text(
+            backgroundColor:
+                isDark ? scheme.surfaceContainerLow : Colors.white,
+            title: Text(
               'New Sticky Note',
               style: TextStyle(
                 fontWeight: FontWeight.w800,
-                color: NotedColors.ink,
+                color: scheme.onSurface,
               ),
             ),
             content: ConstrainedBox(
@@ -78,12 +88,12 @@ class _HomeScreenState extends State<HomeScreen> {
                       ),
                     ),
                     const SizedBox(height: 16),
-                    const Text(
+                    Text(
                       'Color',
                       style: TextStyle(
                         fontWeight: FontWeight.w700,
                         fontSize: 13,
-                        color: NotedColors.ink,
+                        color: scheme.onSurface,
                       ),
                     ),
                     const SizedBox(height: 8),
@@ -102,16 +112,19 @@ class _HomeScreenState extends State<HomeScreen> {
                               shape: BoxShape.circle,
                               border: Border.all(
                                 color: isSel
-                                    ? NotedColors.ink
-                                    : NotedColors.border,
+                                    ? (isDark ? Colors.white : NotedColors.ink)
+                                    : (isDark
+                                        ? scheme.outlineVariant
+                                        : NotedColors.border),
                                 width: isSel ? 2.5 : 1.5,
                               ),
                             ),
                             child: isSel
-                                ? const Icon(
+                                ? Icon(
                                     Icons.check,
                                     size: 18,
-                                    color: NotedColors.ink,
+                                    color:
+                                        isDark ? Colors.white : NotedColors.ink,
                                   )
                                 : null,
                           ),
@@ -119,12 +132,12 @@ class _HomeScreenState extends State<HomeScreen> {
                       }).toList(),
                     ),
                     const SizedBox(height: 16),
-                    const Text(
+                    Text(
                       'Type',
                       style: TextStyle(
                         fontWeight: FontWeight.w700,
                         fontSize: 13,
-                        color: NotedColors.ink,
+                        color: scheme.onSurface,
                       ),
                     ),
                     const SizedBox(height: 8),
@@ -162,13 +175,20 @@ class _HomeScreenState extends State<HomeScreen> {
             actions: [
               TextButton(
                 onPressed: () => Navigator.pop(ctx),
-                child: const Text('Cancel'),
+                child: Text(
+                  'Cancel',
+                  style: TextStyle(color: scheme.onSurfaceVariant),
+                ),
               ),
               ElevatedButton(
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: NotedColors.yellow,
-                  foregroundColor: NotedColors.ink,
-                  side: const BorderSide(color: NotedColors.border, width: 2),
+                  backgroundColor:
+                      isDark ? const Color(0xFF352C16) : NotedColors.yellow,
+                  foregroundColor: isDark ? Colors.white : NotedColors.ink,
+                  side: BorderSide(
+                    color: isDark ? const Color(0xFFFFC107) : NotedColors.border,
+                    width: 2,
+                  ),
                 ),
                 onPressed: () async {
                   final title = titleCtrl.text.trim().isEmpty
@@ -209,34 +229,49 @@ class _HomeScreenState extends State<HomeScreen> {
     String noteId,
     String title,
   ) {
+    final scheme = Theme.of(context).colorScheme;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(20),
-          side: const BorderSide(color: NotedColors.border, width: 2.2),
+          side: BorderSide(
+            color: isDark ? scheme.outlineVariant : NotedColors.border,
+            width: 2.2,
+          ),
         ),
-        title: const Text(
+        backgroundColor: isDark ? scheme.surfaceContainerLow : Colors.white,
+        title: Text(
           'Delete Note',
-          style: TextStyle(fontWeight: FontWeight.w800, color: NotedColors.ink),
+          style: TextStyle(
+            fontWeight: FontWeight.w800,
+            color: scheme.onSurface,
+          ),
         ),
         content: Text(
           'Are you sure you want to delete "$title"?',
-          style: const TextStyle(
+          style: TextStyle(
             fontWeight: FontWeight.w600,
-            color: NotedColors.inkMuted,
+            color: scheme.onSurfaceVariant,
           ),
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx),
-            child: const Text('Cancel'),
+            child: Text(
+              'Cancel',
+              style: TextStyle(color: scheme.onSurfaceVariant),
+            ),
           ),
           ElevatedButton(
             style: ElevatedButton.styleFrom(
-              backgroundColor: NotedColors.pink,
+              backgroundColor: scheme.error,
               foregroundColor: Colors.white,
-              side: const BorderSide(color: NotedColors.border, width: 2),
+              side: BorderSide(
+                color: isDark ? scheme.outlineVariant : NotedColors.border,
+                width: 2,
+              ),
             ),
             onPressed: () async {
               await Vault.I.deleteStickyNote(noteId);
@@ -260,34 +295,49 @@ class _HomeScreenState extends State<HomeScreen> {
     String itemId,
     String taskText,
   ) {
+    final scheme = Theme.of(context).colorScheme;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(20),
-          side: const BorderSide(color: NotedColors.border, width: 2.2),
+          side: BorderSide(
+            color: isDark ? scheme.outlineVariant : NotedColors.border,
+            width: 2.2,
+          ),
         ),
-        title: const Text(
+        backgroundColor: isDark ? scheme.surfaceContainerLow : Colors.white,
+        title: Text(
           'Delete Task',
-          style: TextStyle(fontWeight: FontWeight.w800, color: NotedColors.ink),
+          style: TextStyle(
+            fontWeight: FontWeight.w800,
+            color: scheme.onSurface,
+          ),
         ),
         content: Text(
           'Are you sure you want to delete "$taskText"?',
-          style: const TextStyle(
+          style: TextStyle(
             fontWeight: FontWeight.w600,
-            color: NotedColors.inkMuted,
+            color: scheme.onSurfaceVariant,
           ),
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx),
-            child: const Text('Cancel'),
+            child: Text(
+              'Cancel',
+              style: TextStyle(color: scheme.onSurfaceVariant),
+            ),
           ),
           ElevatedButton(
             style: ElevatedButton.styleFrom(
-              backgroundColor: NotedColors.pink,
+              backgroundColor: scheme.error,
               foregroundColor: Colors.white,
-              side: const BorderSide(color: NotedColors.border, width: 2),
+              side: BorderSide(
+                color: isDark ? scheme.outlineVariant : NotedColors.border,
+                width: 2,
+              ),
             ),
             onPressed: () async {
               await Vault.I.deleteStickyItem(noteId, itemId);
@@ -301,6 +351,114 @@ class _HomeScreenState extends State<HomeScreen> {
             ),
           ),
         ],
+      ),
+    );
+  }
+
+  void _promptAddStickyItem(BuildContext context, StickyNoteModel note) {
+    final textCtrl = TextEditingController();
+    final scheme = Theme.of(context).colorScheme;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    bool isBullet = note.items.isNotEmpty ? note.items.first.isBullet : false;
+
+    showDialog(
+      context: context,
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setDialogState) => AlertDialog(
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(20),
+            side: BorderSide(
+              color: isDark ? scheme.outlineVariant : NotedColors.border,
+              width: 2.2,
+            ),
+          ),
+          backgroundColor: isDark ? scheme.surfaceContainerLow : Colors.white,
+          title: Text(
+            'Add to "${note.title}"',
+            style: TextStyle(
+              fontWeight: FontWeight.w800,
+              color: scheme.onSurface,
+              fontSize: 18,
+            ),
+          ),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              TextField(
+                controller: textCtrl,
+                autofocus: true,
+                decoration: const InputDecoration(
+                  labelText: 'Item text',
+                  hintText: 'e.g. Review chapter 2',
+                ),
+                onSubmitted: (val) async {
+                  if (val.trim().isNotEmpty) {
+                    await Vault.I.addStickyItem(
+                      note.id,
+                      val.trim(),
+                      isBullet: isBullet,
+                    );
+                    if (ctx.mounted) Navigator.pop(ctx);
+                  }
+                },
+              ),
+              const SizedBox(height: 14),
+              Wrap(
+                spacing: 8,
+                children: [
+                  ChoiceChip(
+                    label: const Text('Task (Checkbox)'),
+                    selected: !isBullet,
+                    onSelected: (v) => setDialogState(() => isBullet = !v),
+                  ),
+                  ChoiceChip(
+                    label: const Text('Bullet'),
+                    selected: isBullet,
+                    onSelected: (v) => setDialogState(() => isBullet = v),
+                  ),
+                ],
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(ctx),
+              child: Text(
+                'Cancel',
+                style: TextStyle(color: scheme.onSurfaceVariant),
+              ),
+            ),
+            ElevatedButton(
+              style: ElevatedButton.styleFrom(
+                backgroundColor:
+                    isDark ? const Color(0xFF352C16) : NotedColors.yellow,
+                foregroundColor: isDark ? Colors.white : NotedColors.ink,
+                side: BorderSide(
+                  color: isDark ? const Color(0xFFFFC107) : NotedColors.border,
+                  width: 2,
+                ),
+              ),
+              onPressed: () async {
+                final text = textCtrl.text.trim();
+                if (text.isNotEmpty) {
+                  await Vault.I.addStickyItem(
+                    note.id,
+                    text,
+                    isBullet: isBullet,
+                  );
+                }
+                if (ctx.mounted) {
+                  Navigator.pop(ctx);
+                }
+              },
+              child: const Text(
+                'Add',
+                style: TextStyle(fontWeight: FontWeight.w800),
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -319,9 +477,11 @@ class _HomeScreenState extends State<HomeScreen> {
   @override
   Widget build(BuildContext context) {
     final vault = Vault.I;
+    final scheme = Theme.of(context).colorScheme;
+    final isLight = Theme.of(context).brightness == Brightness.light;
 
     return Scaffold(
-      backgroundColor: NotedColors.canvasLight,
+      backgroundColor: scheme.surface,
       body: SafeArea(
         bottom: false,
         child: ListenableBuilder(
@@ -338,10 +498,10 @@ class _HomeScreenState extends State<HomeScreen> {
                         width: 44,
                         height: 44,
                         decoration: BoxDecoration(
-                          color: Colors.white,
+                          color: isLight ? Colors.white : scheme.surfaceContainerHigh,
                           borderRadius: BorderRadius.circular(14),
                           border: Border.all(
-                            color: NotedColors.border,
+                            color: isLight ? NotedColors.border : scheme.outline,
                             width: 2,
                           ),
                         ),
@@ -385,62 +545,109 @@ class _HomeScreenState extends State<HomeScreen> {
                 SliverAppBar(
                   toolbarHeight: 74,
                   pinned: true,
-                  backgroundColor: NotedColors.canvasLight,
+                  backgroundColor: scheme.surface,
                   title: Row(
                     children: [
-                      Container(
-                        width: 46,
-                        height: 46,
-                        decoration: BoxDecoration(
-                          color: NotedColors.yellow,
-                          borderRadius: BorderRadius.circular(15),
-                          border: Border.all(
-                            color: NotedColors.border,
-                            width: 2.2,
-                          ),
-                          boxShadow: const [
-                            BoxShadow(
-                              color: NotedColors.shadow,
-                              offset: Offset(2, 2.5),
-                              blurRadius: 0,
+                      GestureDetector(
+                        onTap: () => promptAvatarPicker(context),
+                        child: Stack(
+                          clipBehavior: Clip.none,
+                          children: [
+                            Container(
+                              width: 44,
+                              height: 44,
+                              decoration: BoxDecoration(
+                                color: (vault.userAvatarPath != null &&
+                                        File(vault.userAvatarPath!).existsSync())
+                                    ? Colors.transparent
+                                    : NotedColors.yellow,
+                                borderRadius: BorderRadius.circular(14),
+                                border: Border.all(
+                                  color: isLight ? NotedColors.border : scheme.outline,
+                                  width: 2,
+                                ),
+                                boxShadow: [
+                                  BoxShadow(
+                                    color: isLight ? NotedColors.shadow : Colors.black,
+                                    offset: const Offset(2, 2.5),
+                                    blurRadius: 0,
+                                  ),
+                                ],
+                              ),
+                              alignment: Alignment.center,
+                              child: (vault.userAvatarPath != null &&
+                                      File(vault.userAvatarPath!).existsSync())
+                                  ? ClipRRect(
+                                      borderRadius: BorderRadius.circular(12),
+                                      child: Image.file(
+                                        File(vault.userAvatarPath!),
+                                        fit: BoxFit.cover,
+                                        width: 44,
+                                        height: 44,
+                                      ),
+                                    )
+                                  : Text(
+                                      vault.userName.isNotEmpty
+                                          ? vault.userName[0].toUpperCase()
+                                          : '✨',
+                                      style: const TextStyle(
+                                        fontSize: 18,
+                                        fontWeight: FontWeight.w900,
+                                        color: NotedColors.ink,
+                                      ),
+                                    ),
+                            ),
+                            Positioned(
+                              right: -3,
+                              bottom: -3,
+                              child: Container(
+                                padding: const EdgeInsets.all(2.5),
+                                decoration: BoxDecoration(
+                                  color: isLight ? Colors.white : const Color(0xFF262626),
+                                  shape: BoxShape.circle,
+                                  border: Border.all(
+                                    color: isLight ? NotedColors.border : scheme.outline,
+                                    width: 1.2,
+                                  ),
+                                ),
+                                child: Icon(
+                                  Icons.edit_rounded,
+                                  size: 9,
+                                  color: scheme.onSurface,
+                                ),
+                              ),
                             ),
                           ],
                         ),
-                        alignment: Alignment.center,
-                        child: Text(
-                          vault.userName.isNotEmpty
-                              ? vault.userName[0].toUpperCase()
-                              : 'M',
-                          style: const TextStyle(
-                            fontSize: 19,
-                            fontWeight: FontWeight.w900,
-                            color: NotedColors.ink,
-                          ),
-                        ),
                       ),
-                      const SizedBox(width: 12),
+                      const SizedBox(width: 10),
                       Expanded(
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
+                          mainAxisSize: MainAxisSize.min,
                           children: [
                             Text(
-                              '$_greeting, ${vault.userName}',
+                              vault.userName.isNotEmpty
+                                  ? '$_greeting, ${vault.userName}'
+                                  : _greeting,
                               maxLines: 1,
                               overflow: TextOverflow.ellipsis,
-                              style: const TextStyle(
-                                fontSize: 17,
+                              style: TextStyle(
+                                fontSize: 16,
                                 fontWeight: FontWeight.w900,
-                                letterSpacing: -0.4,
-                                color: NotedColors.ink,
+                                letterSpacing: -0.3,
+                                color: scheme.onSurface,
                               ),
                             ),
                             const SizedBox(height: 2),
                             Text(
-                              '${vault.unreadCount} unread · ${vault.inboxCount} notes in vault',
-                              style: const TextStyle(
-                                fontSize: 12.5,
+                              '${vault.unreadCount} unread · ${vault.inboxCount} in vault',
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: TextStyle(
+                                fontSize: 11.5,
                                 fontWeight: FontWeight.w600,
-                                color: NotedColors.inkMuted,
+                                color: scheme.onSurfaceVariant,
                               ),
                             ),
                           ],
@@ -450,15 +657,19 @@ class _HomeScreenState extends State<HomeScreen> {
                   ),
                   actions: [
                     LvIconBtn(
-                      icon: Icons.settings_outlined,
-                      tooltip: 'Settings',
-                      onTap: () =>
-                          Navigator.pushNamed(context, RoutePaths.settings),
-                    ),
-                    LvIconBtn(
-                      icon: Icons.search_rounded,
-                      tooltip: 'Search',
-                      onTap: () => appTab.value = 1,
+                      icon: vault.themeMode == ThemeMode.dark
+                          ? Icons.light_mode_rounded
+                          : Icons.dark_mode_outlined,
+                      tooltip: vault.themeMode == ThemeMode.dark
+                          ? 'Light mode'
+                          : 'Dark mode',
+                      onTap: () {
+                        vault.setThemeMode(
+                          vault.themeMode == ThemeMode.dark
+                              ? ThemeMode.light
+                              : ThemeMode.dark,
+                        );
+                      },
                     ),
                     Stack(
                       children: [
@@ -486,6 +697,12 @@ class _HomeScreenState extends State<HomeScreen> {
                           ),
                       ],
                     ),
+                    LvIconBtn(
+                      icon: Icons.settings_outlined,
+                      tooltip: 'Settings',
+                      onTap: () =>
+                          Navigator.pushNamed(context, RoutePaths.settings),
+                    ),
                     const SizedBox(width: 4),
                   ],
                 ),
@@ -509,8 +726,10 @@ class _HomeScreenState extends State<HomeScreen> {
                           width: double.infinity,
                           padding: const EdgeInsets.all(Insets.m),
                           decoration: NotedBox.card(
-                            color: Colors.white,
+                            color: !isLight ? scheme.surfaceContainerLow : Colors.white,
                             radius: 18,
+                            borderColor: !isLight ? scheme.outlineVariant : NotedColors.border,
+                            shadowColor: !isLight ? Colors.black : NotedColors.shadow,
                           ),
                           child: Row(
                             children: [
@@ -521,17 +740,17 @@ class _HomeScreenState extends State<HomeScreen> {
                                   color: NotedColors.yellowLight,
                                   borderRadius: BorderRadius.circular(12),
                                   border: Border.all(
-                                    color: NotedColors.border,
+                                    color: isLight ? NotedColors.border : scheme.outlineVariant,
                                     width: 2,
                                   ),
                                 ),
-                                child: const Icon(
-                                  Icons.sticky_note_2_outlined,
+                               child: Icon(
+                                 Icons.sticky_note_2_outlined,
                                   color: NotedColors.ink,
-                                ),
+                               ),
                               ),
                               const SizedBox(width: 12),
-                              const Expanded(
+                              Expanded(
                                 child: Column(
                                   crossAxisAlignment: CrossAxisAlignment.start,
                                   children: [
@@ -540,7 +759,7 @@ class _HomeScreenState extends State<HomeScreen> {
                                       style: TextStyle(
                                         fontSize: 14,
                                         fontWeight: FontWeight.w800,
-                                        color: NotedColors.ink,
+                                        color: isLight ? NotedColors.ink : scheme.onSurface,
                                       ),
                                     ),
                                     SizedBox(height: 2),
@@ -549,7 +768,7 @@ class _HomeScreenState extends State<HomeScreen> {
                                       style: TextStyle(
                                         fontSize: 12,
                                         fontWeight: FontWeight.w600,
-                                        color: NotedColors.inkMuted,
+                                        color: isLight ? NotedColors.inkMuted : scheme.onSurfaceVariant,
                                       ),
                                     ),
                                   ],
@@ -585,6 +804,10 @@ class _HomeScreenState extends State<HomeScreen> {
                                 title: note.title,
                                 color: note.color,
                                 width: 235,
+                                onAddItem: () => _promptAddStickyItem(
+                                  context,
+                                  note,
+                                ),
                                 onDelete: () => _confirmDeleteStickyNote(
                                   context,
                                   note.id,
@@ -667,94 +890,198 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   void _showNotifications(BuildContext context) {
+    unawaited(Vault.I.syncActiveSystemNotifications());
     final vault = Vault.I;
     LvSheet.show(
       context,
       title: 'Notifications',
       builder: (ctx) => ListenableBuilder(
         listenable: vault,
-        builder: (ctx, _) => Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            if (vault.notifications.isEmpty)
-              const Padding(
-                padding: EdgeInsets.all(24),
-                child: Text('You\u2019re all caught up.'),
-              )
-            else
-              ...vault.notifications.map(
-                (n) => ListTile(
-                  onTap: () {
-                    vault.readNotification(n);
-                    Navigator.pop(ctx);
-                    if (n.resourceId != null &&
-                        vault.find(n.resourceId!) != null) {
-                      Navigator.pushNamed(
-                        ctx,
-                        RoutePaths.details,
-                        arguments: n.resourceId,
-                      );
-                    } else {
-                      Navigator.pushNamed(ctx, RoutePaths.inbox);
-                    }
-                  },
-                  leading: Container(
-                    width: 40,
-                    height: 40,
-                    decoration: BoxDecoration(
-                      color: n.read ? Colors.white : NotedColors.yellow,
-                      shape: BoxShape.circle,
-                      border: Border.all(color: NotedColors.border, width: 1.8),
-                    ),
-                    child: Icon(n.icon, size: 19, color: NotedColors.ink),
-                  ),
-                  title: Text(
-                    n.title,
-                    style: TextStyle(
-                      fontSize: 14,
-                      fontWeight: n.read ? FontWeight.w600 : FontWeight.w800,
+        builder: (ctx, _) {
+          final scheme = Theme.of(ctx).colorScheme;
+          final isLight = Theme.of(ctx).brightness == Brightness.light;
+          return ConstrainedBox(
+            constraints: BoxConstraints(
+              maxHeight: MediaQuery.sizeOf(ctx).height * 0.75,
+            ),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                if (vault.notifications.isEmpty) ...[
+                  const Padding(
+                    padding: EdgeInsets.fromLTRB(24, 16, 24, 8),
+                    child: Text(
+                      'You’re all caught up.',
+                      style: TextStyle(fontWeight: FontWeight.w700),
                     ),
                   ),
-                  subtitle: Text(
-                    n.body,
-                    style: const TextStyle(fontSize: 12.5),
+                  const Padding(
+                    padding: EdgeInsets.symmetric(horizontal: 24),
+                    child: Text(
+                      'Use Quick Add to save a source, then its updates will appear here.',
+                    ),
                   ),
-                  trailing: n.read
-                      ? null
-                      : Container(
-                          width: 8,
-                          height: 8,
-                          decoration: const BoxDecoration(
-                            color: NotedColors.pink,
-                            shape: BoxShape.circle,
+                  const SizedBox(height: 12),
+                  Align(
+                    alignment: Alignment.centerLeft,
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 16),
+                      child: TextButton.icon(
+                        onPressed: () {
+                          Navigator.pop(ctx);
+                          Navigator.pushNamed(ctx, RoutePaths.add);
+                        },
+                        icon: const Icon(Icons.add_link_rounded),
+                        label: const Text('Save a source'),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                ] else ...[
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(16, 0, 16, 6),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        TextButton.icon(
+                          onPressed: () => vault.clearAllNotifications(),
+                          icon: Icon(
+                            Icons.delete_sweep_outlined,
+                            size: 18,
+                            color: scheme.error,
+                          ),
+                          label: Text(
+                            'Clear all',
+                            style: TextStyle(
+                              color: scheme.error,
+                              fontWeight: FontWeight.w700,
+                            ),
                           ),
                         ),
-                ),
-              ),
-            if (vault.notifications.isEmpty) ...[
-              const Padding(
-                padding: EdgeInsets.symmetric(horizontal: 24),
-                child: Text(
-                  'Use Quick Add to save a source, then its updates will appear here.',
-                ),
-              ),
-              const SizedBox(height: 12),
-              TextButton.icon(
-                onPressed: () {
-                  Navigator.pop(ctx);
-                  Navigator.pushNamed(ctx, RoutePaths.add);
-                },
-                icon: const Icon(Icons.add_link_rounded),
-                label: const Text('Save a source'),
-              ),
-            ] else
-              TextButton(
-                onPressed: () => vault.markAllNotificationsRead(),
-                child: const Text('Mark all as read'),
-              ),
-            const SizedBox(height: 4),
-          ],
-        ),
+                        TextButton.icon(
+                          onPressed: () => vault.markAllNotificationsRead(),
+                          icon: const Icon(Icons.done_all_rounded, size: 18),
+                          label: const Text(
+                            'Mark all as read',
+                            style: TextStyle(fontWeight: FontWeight.w700),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const Divider(height: 1),
+                  Flexible(
+                    child: ListView.separated(
+                      shrinkWrap: true,
+                      padding: const EdgeInsets.symmetric(vertical: 4),
+                      itemCount: vault.notifications.length,
+                      separatorBuilder: (_, _) =>
+                          const Divider(height: 1, indent: 68),
+                      itemBuilder: (ctx, i) {
+                        final n = vault.notifications[i];
+                        return Dismissible(
+                          key: ValueKey(n.id),
+                          direction: DismissDirection.horizontal,
+                          background: Container(
+                            alignment: Alignment.centerLeft,
+                            padding: const EdgeInsets.symmetric(horizontal: 20),
+                            color: scheme.errorContainer,
+                            child: Icon(
+                              Icons.delete_outline_rounded,
+                              color: scheme.onErrorContainer,
+                            ),
+                          ),
+                          secondaryBackground: Container(
+                            alignment: Alignment.centerRight,
+                            padding: const EdgeInsets.symmetric(horizontal: 20),
+                            color: scheme.errorContainer,
+                            child: Icon(
+                              Icons.delete_outline_rounded,
+                              color: scheme.onErrorContainer,
+                            ),
+                          ),
+                          onDismissed: (_) {
+                            vault.deleteNotification(n.id);
+                          },
+                          child: ListTile(
+                            onTap: () {
+                              vault.readNotification(n);
+                              Navigator.pop(ctx);
+                              if (n.resourceId != null &&
+                                  vault.find(n.resourceId!) != null) {
+                                Navigator.pushNamed(
+                                  ctx,
+                                  RoutePaths.details,
+                                  arguments: n.resourceId,
+                                );
+                              } else {
+                                Navigator.pushNamed(ctx, RoutePaths.inbox);
+                              }
+                            },
+                            leading: Container(
+                              width: 40,
+                              height: 40,
+                              decoration: BoxDecoration(
+                                color: n.read
+                                    ? (isLight
+                                        ? Colors.white
+                                        : scheme.surfaceContainerHigh)
+                                    : (isLight
+                                        ? NotedColors.yellow
+                                        : const Color(0xFF352C16)),
+                                shape: BoxShape.circle,
+                                border: Border.all(
+                                  color: isLight
+                                      ? NotedColors.border
+                                      : (n.read
+                                          ? scheme.outlineVariant
+                                          : const Color(0xFFFFC107)),
+                                  width: 1.8,
+                                ),
+                              ),
+                              child: Icon(
+                                n.icon,
+                                size: 19,
+                                color: isLight
+                                    ? NotedColors.ink
+                                    : (n.read
+                                        ? scheme.onSurfaceVariant
+                                        : Colors.white),
+                              ),
+                            ),
+                            title: Text(
+                              n.title,
+                              style: TextStyle(
+                                fontSize: 14,
+                                fontWeight:
+                                    n.read ? FontWeight.w600 : FontWeight.w800,
+                              ),
+                            ),
+                            subtitle: Text(
+                              n.body,
+                              style: const TextStyle(fontSize: 12.5),
+                            ),
+                            trailing: n.read
+                                ? null
+                                : Container(
+                                    width: 8,
+                                    height: 8,
+                                    decoration: const BoxDecoration(
+                                      color: NotedColors.pink,
+                                      shape: BoxShape.circle,
+                                    ),
+                                  ),
+                          ),
+                        );
+                      },
+                    ),
+                  ),
+                ],
+              ],
+            ),
+          );
+        },
       ),
     );
   }
@@ -811,6 +1138,8 @@ class _ProgressCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final vault = Vault.I;
+    final scheme = Theme.of(context).colorScheme;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     final total = vault.items.length;
     final done = vault.items
         .where((e) => e.status == ResourceStatus.completed)
@@ -820,16 +1149,28 @@ class _ProgressCard extends StatelessWidget {
         .length;
 
     return Container(
-      decoration: NotedBox.card(color: NotedColors.yellow, radius: 18),
+      decoration: NotedBox.card(
+        color: isDark ? const Color(0xFF332A18) : NotedColors.yellow,
+        radius: 18,
+        borderColor: isDark
+            ? const Color(0xFFFFC107).withValues(alpha: 0.4)
+            : NotedColors.border,
+        shadowColor: isDark ? Colors.black : NotedColors.shadow,
+      ),
       padding: const EdgeInsets.all(Insets.m),
       child: Row(
         children: [
           Container(
             padding: const EdgeInsets.all(6),
             decoration: BoxDecoration(
-              color: Colors.white,
+              color: isDark ? scheme.surfaceContainerHigh : Colors.white,
               borderRadius: BorderRadius.circular(16),
-              border: Border.all(color: NotedColors.border, width: 2),
+              border: Border.all(
+                color: isDark
+                    ? const Color(0xFFFFC107).withValues(alpha: 0.5)
+                    : NotedColors.border,
+                width: 2,
+              ),
             ),
             child: ProgressRing(
               value: total == 0 ? 0 : done / total,
@@ -842,22 +1183,22 @@ class _ProgressCard extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Text(
+                Text(
                   'Your Progress',
                   style: TextStyle(
                     fontSize: 16.5,
                     fontWeight: FontWeight.w900,
                     letterSpacing: -0.3,
-                    color: NotedColors.ink,
+                    color: isDark ? Colors.white : NotedColors.ink,
                   ),
                 ),
                 const SizedBox(height: 3),
                 Text(
                   '$done completed · $inProg in progress',
-                  style: const TextStyle(
+                  style: TextStyle(
                     fontSize: 12.5,
                     fontWeight: FontWeight.w600,
-                    color: NotedColors.ink,
+                    color: isDark ? scheme.onSurfaceVariant : NotedColors.ink,
                   ),
                 ),
                 const SizedBox(height: 10),
@@ -865,10 +1206,17 @@ class _ProgressCard extends StatelessWidget {
                   alignment: Alignment.centerLeft,
                   child: ElevatedButton(
                     style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.white,
-                      foregroundColor: NotedColors.ink,
+                      backgroundColor:
+                          isDark ? scheme.surfaceContainerHigh : Colors.white,
+                      foregroundColor:
+                          isDark ? scheme.onSurface : NotedColors.ink,
                       visualDensity: VisualDensity.compact,
                       padding: const EdgeInsets.symmetric(horizontal: 16),
+                      side: BorderSide(
+                        color:
+                            isDark ? scheme.outlineVariant : NotedColors.border,
+                        width: 2,
+                      ),
                     ),
                     onPressed: onAnalytics,
                     child: const Text(
@@ -925,8 +1273,20 @@ class _InboxCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final vault = Vault.I;
+    final scheme = Theme.of(context).colorScheme;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final cardColor = NotedColors.pastelCard(1, isDark: isDark);
+    final accentColor = NotedColors.collectionAccent(1);
+
     return Container(
-      decoration: NotedBox.card(color: NotedColors.mintLight, radius: 18),
+      decoration: NotedBox.card(
+        color: cardColor,
+        radius: 18,
+        borderColor: isDark
+            ? accentColor.withValues(alpha: 0.4)
+            : NotedColors.border,
+        shadowColor: isDark ? Colors.black : NotedColors.shadow,
+      ),
       padding: const EdgeInsets.all(Insets.m),
       child: Row(
         children: [
@@ -934,32 +1294,40 @@ class _InboxCard extends StatelessWidget {
             width: 48,
             height: 48,
             decoration: BoxDecoration(
-              color: Colors.white,
+              color: isDark ? scheme.surfaceContainerHigh : Colors.white,
               borderRadius: BorderRadius.circular(Radii.thumb),
-              border: Border.all(color: NotedColors.border, width: 2),
+              border: Border.all(
+                color: isDark
+                    ? accentColor.withValues(alpha: 0.5)
+                    : NotedColors.border,
+                width: 2,
+              ),
             ),
-            child: const Icon(Icons.inbox_rounded, color: NotedColors.ink),
+            child: Icon(
+              Icons.inbox_rounded,
+              color: isDark ? accentColor : NotedColors.ink,
+            ),
           ),
           const SizedBox(width: 12),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Text(
+                Text(
                   'Inbox',
                   style: TextStyle(
                     fontSize: 16,
                     fontWeight: FontWeight.w800,
-                    color: NotedColors.ink,
+                    color: isDark ? Colors.white : NotedColors.ink,
                   ),
                 ),
                 const SizedBox(height: 2),
                 Text(
                   '${vault.inboxCount} saved · auto-synced',
-                  style: const TextStyle(
+                  style: TextStyle(
                     fontSize: 12,
                     fontWeight: FontWeight.w600,
-                    color: NotedColors.inkMuted,
+                    color: isDark ? scheme.onSurfaceVariant : NotedColors.inkMuted,
                   ),
                 ),
               ],
@@ -968,8 +1336,14 @@ class _InboxCard extends StatelessWidget {
           const SizedBox(width: 8),
           ElevatedButton(
             style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.white,
-              foregroundColor: NotedColors.ink,
+              backgroundColor:
+                  isDark ? scheme.surfaceContainerHigh : Colors.white,
+              foregroundColor:
+                  isDark ? scheme.onSurface : NotedColors.ink,
+              side: BorderSide(
+                color: isDark ? scheme.outlineVariant : NotedColors.border,
+                width: 2,
+              ),
               visualDensity: VisualDensity.compact,
             ),
             onPressed: onOpenInbox,
@@ -1003,10 +1377,12 @@ class _QuickAddRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     final actions = [
-      (Icons.note_add_rounded, 'New note', NotedColors.yellowLight),
-      (Icons.link_rounded, 'Paste link', NotedColors.mintLight),
-      (Icons.upload_file_rounded, 'Upload file', NotedColors.pinkLight),
+      (Icons.note_add_rounded, 'New note', NotedColors.pastelCard(0, isDark: isDark)),
+      (Icons.link_rounded, 'Paste link', NotedColors.pastelCard(1, isDark: isDark)),
+      (Icons.upload_file_rounded, 'Upload file', NotedColors.pastelCard(2, isDark: isDark)),
     ];
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -1021,6 +1397,8 @@ class _QuickAddRow extends StatelessWidget {
                     child: Container(
                       decoration: NotedBox.card(
                         color: a.$3,
+                        borderColor: isDark ? scheme.outlineVariant : NotedColors.border,
+                        shadowColor: isDark ? Colors.black : NotedColors.shadow,
                         radius: 16,
                         shadow: true,
                         shadowOffset: const Offset(2.5, 3),
@@ -1048,14 +1426,18 @@ class _QuickAddRow extends StatelessWidget {
                             padding: const EdgeInsets.symmetric(vertical: 14),
                             child: Column(
                               children: [
-                                Icon(a.$1, size: 24, color: NotedColors.ink),
+                                Icon(
+                                  a.$1,
+                                  size: 24,
+                                  color: isDark ? scheme.onSurface : NotedColors.ink,
+                                ),
                                 const SizedBox(height: 6),
                                 Text(
                                   a.$2,
-                                  style: const TextStyle(
+                                  style: TextStyle(
                                     fontSize: 11.5,
                                     fontWeight: FontWeight.w800,
-                                    color: NotedColors.ink,
+                                    color: isDark ? scheme.onSurface : NotedColors.ink,
                                   ),
                                 ),
                               ],

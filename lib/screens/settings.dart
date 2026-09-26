@@ -1,3 +1,5 @@
+import 'dart:io';
+
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:path/path.dart' as p;
@@ -64,7 +66,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
       context,
       enabled
           ? 'Notifications enabled — reminders are scheduled.'
-          : 'Notifications are blocked. Allow them in Android Settings.',
+          : 'Notifications are blocked. Allow them in device Settings.',
       icon: enabled
           ? Icons.notifications_active_rounded
           : Icons.notifications_off_outlined,
@@ -125,18 +127,53 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     horizontal: 16,
                     vertical: 8,
                   ),
-                  leading: CircleAvatar(
-                    radius: 26,
-                    backgroundColor: scheme.primaryContainer,
-                    child: Text(
-                      vault.userName.isNotEmpty
-                          ? vault.userName[0].toUpperCase()
-                          : 'A',
-                      style: TextStyle(
-                        fontSize: 18,
-                        fontWeight: FontWeight.w800,
-                        color: scheme.onPrimaryContainer,
-                      ),
+                  leading: GestureDetector(
+                    onTap: () => promptAvatarPicker(context),
+                    child: Stack(
+                      clipBehavior: Clip.none,
+                      children: [
+                        CircleAvatar(
+                          radius: 26,
+                          backgroundColor: scheme.primaryContainer,
+                          backgroundImage: (vault.userAvatarPath != null &&
+                                  File(vault.userAvatarPath!).existsSync())
+                              ? FileImage(File(vault.userAvatarPath!))
+                              : null,
+                          child: (vault.userAvatarPath == null ||
+                                  !File(vault.userAvatarPath!).existsSync())
+                              ? Text(
+                                  vault.userName.isNotEmpty
+                                      ? vault.userName[0].toUpperCase()
+                                      : 'A',
+                                  style: TextStyle(
+                                    fontSize: 18,
+                                    fontWeight: FontWeight.w800,
+                                    color: scheme.onPrimaryContainer,
+                                  ),
+                                )
+                              : null,
+                        ),
+                        Positioned(
+                          right: -2,
+                          bottom: -2,
+                          child: Container(
+                            padding: const EdgeInsets.all(3),
+                            decoration: BoxDecoration(
+                              color: scheme.surface,
+                              shape: BoxShape.circle,
+                              border: Border.all(
+                                color: scheme.outline,
+                                width: 1.2,
+                              ),
+                            ),
+                            child: Icon(
+                              Icons.camera_alt_rounded,
+                              size: 11,
+                              color: scheme.primary,
+                            ),
+                          ),
+                        ),
+                      ],
                     ),
                   ),
                   title: Text(
@@ -161,6 +198,49 @@ class _SettingsScreenState extends State<SettingsScreen> {
               ),
             ),
             const SizedBox(height: Insets.l),
+
+            _section(context, 'Appearance', Icons.palette_outlined, [
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text(
+                      'Theme',
+                      style: TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                    const SizedBox(height: 10),
+                    SizedBox(
+                      width: double.infinity,
+                      child: SegmentedButton<ThemeMode>(
+                  segments: const [
+                    ButtonSegment(
+                      value: ThemeMode.light,
+                      icon: Icon(Icons.light_mode_rounded, size: 18),
+                      label: Text('Light'),
+                    ),
+                    ButtonSegment(
+                      value: ThemeMode.dark,
+                      icon: Icon(Icons.dark_mode_rounded, size: 18),
+                      label: Text('Dark'),
+                    ),
+                  ],
+                        selected: {vault.themeMode},
+                        onSelectionChanged: (selected) {
+                          if (selected.isNotEmpty) {
+                            vault.setThemeMode(selected.first);
+                          }
+                        },
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ]),
+            const SizedBox(height: 12),
 
             _section(context, 'Notifications', Icons.notifications_outlined, [
               SwitchListTile(
@@ -306,7 +386,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                           ),
                         ),
                         const SizedBox(width: 14),
-                        const Expanded(
+                        Expanded(
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
@@ -316,16 +396,16 @@ class _SettingsScreenState extends State<SettingsScreen> {
                                   fontSize: 16.5,
                                   fontWeight: FontWeight.w900,
                                   letterSpacing: -0.4,
-                                  color: NotedColors.ink,
+                                  color: scheme.onSurface,
                                 ),
                               ),
-                              SizedBox(height: 3),
+                              const SizedBox(height: 3),
                               Text(
                                 'Developer & Creator',
                                 style: TextStyle(
                                   fontSize: 12.5,
                                   fontWeight: FontWeight.w600,
-                                  color: NotedColors.inkMuted,
+                                  color: scheme.onSurfaceVariant,
                                 ),
                               ),
                             ],
@@ -372,7 +452,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                               'Email',
                               style: TextStyle(fontWeight: FontWeight.w800, fontSize: 13),
                             ),
-                            onPressed: () => _openLink(context, 'mailto:bnkhlidd@gmail.com'),
+                                  onPressed: () => _openLink(context, 'mailto:bnkhlidd@gmail.com'),
                           ),
                         ),
                       ],
@@ -463,6 +543,19 @@ class _SettingsScreenState extends State<SettingsScreen> {
         content: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
+            OutlinedButton.icon(
+              onPressed: () {
+                Navigator.pop(dialogContext, false);
+                promptAvatarPicker(context);
+              },
+              icon: const Icon(Icons.photo_camera_outlined, size: 18),
+              label: Text(
+                vault.userAvatarPath != null
+                    ? 'Change profile photo'
+                    : 'Add profile photo',
+              ),
+            ),
+            const SizedBox(height: 12),
             TextField(
               controller: nameController,
               textCapitalization: TextCapitalization.words,
@@ -514,6 +607,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
     final statusNotifier = ValueNotifier<String>('Preparing backup...');
     final progressNotifier = ValueNotifier<double>(0.05);
+    final scheme = Theme.of(context).colorScheme;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
 
     showDialog<void>(
       context: context,
@@ -521,10 +616,13 @@ class _SettingsScreenState extends State<SettingsScreen> {
       builder: (_) => PopScope(
         canPop: false,
         child: Dialog(
-          backgroundColor: Colors.white,
+          backgroundColor: isDark ? scheme.surfaceContainerLow : Colors.white,
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(Radii.card),
-            side: const BorderSide(color: NotedColors.ink, width: 2),
+            side: BorderSide(
+              color: isDark ? scheme.outlineVariant : NotedColors.ink,
+              width: 2,
+            ),
           ),
           child: Padding(
             padding: const EdgeInsets.all(24),
@@ -556,7 +654,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     child: LinearProgressIndicator(
                       value: progress,
                       minHeight: 6,
-                      backgroundColor: NotedColors.canvasLight,
+                      backgroundColor: scheme.surfaceContainerHigh,
                     ),
                   ),
                 ),
@@ -664,6 +762,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
     // 3. Perform Staged Restore with Progress
     final statusNotifier = ValueNotifier<String>('Validating backup...');
     final progressNotifier = ValueNotifier<double>(0.10);
+    final scheme = Theme.of(context).colorScheme;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
 
     showDialog<void>(
       context: context,
@@ -671,10 +771,13 @@ class _SettingsScreenState extends State<SettingsScreen> {
       builder: (_) => PopScope(
         canPop: false,
         child: Dialog(
-          backgroundColor: Colors.white,
+          backgroundColor: isDark ? scheme.surfaceContainerLow : Colors.white,
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(Radii.card),
-            side: const BorderSide(color: NotedColors.ink, width: 2),
+            side: BorderSide(
+              color: isDark ? scheme.outlineVariant : NotedColors.ink,
+              width: 2,
+            ),
           ),
           child: Padding(
             padding: const EdgeInsets.all(24),
@@ -706,7 +809,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     child: LinearProgressIndicator(
                       value: progress,
                       minHeight: 6,
-                      backgroundColor: NotedColors.canvasLight,
+                      backgroundColor: scheme.surfaceContainerHigh,
                     ),
                   ),
                 ),

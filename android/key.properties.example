@@ -1,0 +1,15 @@
+# SkillNest — Release Keystore Configuration Template
+# Copy this file to `android/key.properties` and fill in your real keystore details.
+# DO NOT commit `android/key.properties` or any .jks/.keystore files to Git.
+
+# Path to the upload keystore file (relative to android/ directory or absolute path)
+storeFile=upload-keystore.jks
+
+# Keystore password
+storePassword=YOUR_KEYSTORE_PASSWORD
+
+# Key alias name
+keyAlias=upload
+
+# Key password
+keyPassword=YOUR_KEY_PASSWORD

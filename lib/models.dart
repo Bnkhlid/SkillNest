@@ -1,5 +1,8 @@
 import 'package:flutter/material.dart';
 
+export 'features/notes/data/sticky_note_repository.dart'
+    show StickyNoteModel, StickyItemModel;
+
 enum ResourceStatus { unread, inProgress, completed }
 
 enum ResourceKind { article, video, pdf, note, page, course }
@@ -139,6 +142,7 @@ class CollectionModel {
   String name;
   String emoji;
   int accent; // 0..5 palette index
+  String? parentId;
   DateTime createdAt;
 
   CollectionModel({
@@ -146,6 +150,7 @@ class CollectionModel {
     required this.name,
     this.emoji = '📚',
     this.accent = 0,
+    this.parentId,
     DateTime? createdAt,
   }) : createdAt = createdAt ?? DateTime.now();
 }

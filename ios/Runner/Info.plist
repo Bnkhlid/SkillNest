@@ -30,7 +30,9 @@
 	<array>
 		<dict>
 			<key>CFBundleURLSchemes</key>
-			<array><string>skillnest</string></array>
+			<array>
+				<string>skillnest</string>
+			</array>
 		</dict>
 	</array>
 	<key>UIApplicationSceneManifest</key>
@@ -83,6 +85,20 @@
 		<string>twitter</string>
 		<string>linkedin</string>
 		<string>tiktok</string>
+		<string>itms-apps</string>
+	</array>
+	<key>NSPhotoLibraryUsageDescription</key>
+	<string>SkillNest needs access to your photo library to attach images and customize your profile.</string>
+	<key>NSCameraUsageDescription</key>
+	<string>SkillNest needs access to your camera to capture photos for your resources.</string>
+	<key>UIFileSharingEnabled</key>
+	<true/>
+	<key>LSSupportsOpeningDocumentsInPlace</key>
+	<true/>
+	<key>UIBackgroundModes</key>
+	<array>
+		<string>fetch</string>
+		<string>remote-notification</string>
 	</array>
 </dict>
 </plist>

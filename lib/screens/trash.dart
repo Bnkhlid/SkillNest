@@ -46,12 +46,13 @@ class _TrashScreenState extends State<TrashScreen> {
   @override
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     final vault = Vault.I;
 
     return Scaffold(
-      backgroundColor: NotedColors.canvasLight,
+      backgroundColor: scheme.surface,
       appBar: AppBar(
-        backgroundColor: NotedColors.canvasLight,
+        backgroundColor: scheme.surface,
         leading: _selectMode
             ? IconButton(
                 icon: const Icon(Icons.close_rounded),
@@ -93,7 +94,7 @@ class _TrashScreenState extends State<TrashScreen> {
                 const SizedBox(width: 4),
               ],
       ),
-      bottomNavigationBar: _selectMode && _selected.isNotEmpty ? _bulkBar(scheme) : null,
+      bottomNavigationBar: _selectMode && _selected.isNotEmpty ? _bulkBar(context, scheme) : null,
       body: ListenableBuilder(
         listenable: vault,
         builder: (context, _) {
@@ -140,9 +141,12 @@ class _TrashScreenState extends State<TrashScreen> {
                     final selected = _selected.contains(t.item.id);
                     return Container(
                       decoration: NotedBox.card(
-                        color: Colors.white,
+                        color: isDark ? scheme.surfaceContainerLow : Colors.white,
                         radius: Radii.card,
-                        borderColor: selected ? scheme.primary : NotedColors.border,
+                        borderColor: selected
+                            ? scheme.primary
+                            : (isDark ? scheme.outlineVariant : NotedColors.border),
+                        shadowColor: isDark ? Colors.black : NotedColors.shadow,
                         shadowOffset: const Offset(2.5, 3.5),
                       ),
                       clipBehavior: Clip.antiAlias,
@@ -237,16 +241,26 @@ class _TrashScreenState extends State<TrashScreen> {
     );
   }
 
-  Widget _bulkBar(ColorScheme scheme) {
+  Widget _bulkBar(BuildContext context, ColorScheme scheme) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     return SafeArea(
       top: false,
       child: Container(
         padding: const EdgeInsets.fromLTRB(Insets.m, 8, Insets.m, 8),
         decoration: BoxDecoration(
-          color: Colors.white,
-          border: Border(top: BorderSide(color: NotedColors.border, width: 1.5)),
-          boxShadow: const [
-            BoxShadow(color: NotedColors.shadow, offset: Offset(0, -2), blurRadius: 4),
+          color: isDark ? scheme.surfaceContainerLowest : Colors.white,
+          border: Border(
+            top: BorderSide(
+              color: isDark ? scheme.outlineVariant : NotedColors.border,
+              width: 1.5,
+            ),
+          ),
+          boxShadow: [
+            BoxShadow(
+              color: isDark ? Colors.black38 : NotedColors.shadow,
+              offset: const Offset(0, -2),
+              blurRadius: 4,
+            ),
           ],
         ),
         child: Row(

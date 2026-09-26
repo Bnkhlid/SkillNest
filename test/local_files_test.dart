@@ -51,7 +51,7 @@ void main() {
 
   group('Local Files & File Resources Tests (Phase 6)', () {
     test('1. Fresh database starts with schema version 4 and files table accessible', () async {
-      expect(db.schemaVersion, 5);
+      expect(db.schemaVersion, 6);
       final files = await db.fileDao.getAllFiles();
       expect(files, isEmpty);
     });

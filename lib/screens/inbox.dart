@@ -53,7 +53,7 @@ class _InboxScreenState extends State<InboxScreen> {
     final vault = Vault.I;
 
     return Scaffold(
-      backgroundColor: NotedColors.canvasLight,
+      backgroundColor: scheme.surface,
       appBar: _selectMode
           ? _selectionAppBar(scheme)
           : _normalAppBar(context, scheme),
@@ -106,24 +106,24 @@ class _InboxScreenState extends State<InboxScreen> {
   PreferredSizeWidget _normalAppBar(BuildContext context, ColorScheme scheme) {
     final canPop = Navigator.canPop(context);
     return AppBar(
-      backgroundColor: NotedColors.canvasLight,
+      backgroundColor: scheme.surface,
       leading: canPop
           ? IconButton(
-              icon: const Icon(
+              icon: Icon(
                 Icons.arrow_back_rounded,
-                color: NotedColors.ink,
+                color: scheme.onSurface,
               ),
               tooltip: 'Back',
               onPressed: () => Navigator.pop(context),
             )
           : null,
-      title: const Text(
+      title: Text(
         'Inbox',
-        style: TextStyle(color: NotedColors.ink, fontWeight: FontWeight.w800),
+        style: TextStyle(color: scheme.onSurface, fontWeight: FontWeight.w800),
       ),
       actions: [
         IconButton(
-          icon: const Icon(Icons.checklist_rounded, color: NotedColors.ink),
+          icon: Icon(Icons.checklist_rounded, color: scheme.onSurface),
           tooltip: 'Select',
           onPressed: () => setState(() => _selectMode = true),
         ),
@@ -134,7 +134,7 @@ class _InboxScreenState extends State<InboxScreen> {
 
   PreferredSizeWidget _selectionAppBar(ColorScheme scheme) {
     return AppBar(
-      backgroundColor: NotedColors.canvasLight,
+      backgroundColor: scheme.surface,
       leading: IconButton(
         icon: const Icon(Icons.close_rounded),
         tooltip: 'Cancel',
@@ -400,6 +400,7 @@ class _InboxScreenState extends State<InboxScreen> {
   }
 
   Widget _bulkBar(BuildContext context, ColorScheme scheme) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     final n = _selected.length;
     final items = Vault.I.items.where((e) => _selected.contains(e.id)).toList();
     return SafeArea(
@@ -407,14 +408,17 @@ class _InboxScreenState extends State<InboxScreen> {
       child: Container(
         padding: const EdgeInsets.fromLTRB(Insets.m, 8, Insets.m, 8),
         decoration: BoxDecoration(
-          color: Colors.white,
+          color: isDark ? scheme.surfaceContainerLowest : Colors.white,
           border: Border(
-            top: BorderSide(color: NotedColors.border, width: 1.5),
+            top: BorderSide(
+              color: isDark ? scheme.outlineVariant : NotedColors.border,
+              width: 1.5,
+            ),
           ),
-          boxShadow: const [
+          boxShadow: [
             BoxShadow(
-              color: NotedColors.shadow,
-              offset: Offset(0, -2),
+              color: isDark ? Colors.black38 : NotedColors.shadow,
+              offset: const Offset(0, -2),
               blurRadius: 4,
             ),
           ],

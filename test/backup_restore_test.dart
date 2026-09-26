@@ -361,7 +361,7 @@ void main() {
       expect(manifest['resourceCount'], res.resourceCount);
       expect(manifest['collectionCount'], res.collectionCount);
       expect(manifest['tagCount'], res.tagCount);
-      expect(manifest['schemaVersion'], 5);
+      expect(manifest['schemaVersion'], 6);
       expect(manifest['backupFormatVersion'], 1);
     });
 
@@ -1143,6 +1143,234 @@ void main() {
         expect(Vault.I.items.length, 1);
         expect(Vault.I.items.first.id, 'v3_res');
         expect(Vault.I.items.first.title, 'Legacy v3 Resource');
+      },
+    );
+
+    test(
+      '41. Nested collections hierarchy (root, level 1, level 2) is fully preserved during backup & restore',
+      () async {
+        // 1. Create 3-level collection hierarchy
+        final rootCol = await Vault.I.addCollection('Engineering', emoji: '⚙️');
+        final subCol = await Vault.I.addCollection(
+          'Mobile Development',
+          emoji: '📱',
+          parentId: rootCol.id,
+        );
+        final subSubCol = await Vault.I.addCollection(
+          'Flutter Internals',
+          emoji: '💙',
+          parentId: subCol.id,
+        );
+        final standaloneCol = await Vault.I.addCollection(
+          'Design System',
+          emoji: '🎨',
+        );
+
+        // Add resources inside each level
+        await Vault.I.add(
+          title: 'Root Resource',
+          source: 'eng.com',
+          url: 'https://eng.com',
+          kind: ResourceKind.article,
+          collectionId: rootCol.id,
+        );
+        await Vault.I.add(
+          title: 'Sub Resource',
+          source: 'flutter.dev',
+          url: 'https://flutter.dev',
+          kind: ResourceKind.article,
+          collectionId: subCol.id,
+        );
+        await Vault.I.add(
+          title: 'Deep Resource',
+          source: 'engine.flutter.dev',
+          url: 'https://engine.flutter.dev',
+          kind: ResourceKind.article,
+          collectionId: subSubCol.id,
+        );
+
+        // 2. Export Backup
+        final res = await backupService.exportBackup(
+          customOutputDir: tempDir.path,
+        );
+        expect(res.collectionCount, 4);
+        expect(res.resourceCount, 3);
+
+        // Inspect JSON inside archive
+        final bytes = await File(res.filePath).readAsBytes();
+        final archive = ZipDecoder().decodeBytes(bytes);
+        final data = jsonDecode(
+          utf8.decode(archive.findFile('database.json')!.content as List<int>),
+        );
+        final colsJson = data['collections'] as List<dynamic>;
+
+        final rootJson = colsJson.firstWhere((c) => c['id'] == rootCol.id);
+        final subJson = colsJson.firstWhere((c) => c['id'] == subCol.id);
+        final subSubJson = colsJson.firstWhere((c) => c['id'] == subSubCol.id);
+        final standaloneJson = colsJson.firstWhere((c) => c['id'] == standaloneCol.id);
+
+        expect(rootJson['parentId'], isNull);
+        expect(subJson['parentId'], rootCol.id);
+        expect(subSubJson['parentId'], subCol.id);
+        expect(standaloneJson['parentId'], isNull);
+
+        // 3. Clear database & restore
+        final val = await restoreService.validateBackup(res.filePath);
+        expect(val.isValid, isTrue);
+        expect(val.collectionCount, 4);
+
+        await restoreService.restoreBackup(res.filePath);
+        await Vault.I.reloadFromDb();
+
+        // 4. Verify Vault in-memory hierarchy
+        expect(Vault.I.collections.length, 4);
+
+        final restoredRoot = Vault.I.collections.firstWhere((c) => c.id == rootCol.id);
+        final restoredSub = Vault.I.collections.firstWhere((c) => c.id == subCol.id);
+        final restoredSubSub = Vault.I.collections.firstWhere((c) => c.id == subSubCol.id);
+        final restoredStandalone = Vault.I.collections.firstWhere((c) => c.id == standaloneCol.id);
+
+        expect(restoredRoot.parentId, isNull);
+        expect(restoredSub.parentId, rootCol.id);
+        expect(restoredSubSub.parentId, subCol.id);
+        expect(restoredStandalone.parentId, isNull);
+
+        // Verify subCollections helper
+        expect(Vault.I.rootCollections.map((c) => c.id), containsAll([rootCol.id, standaloneCol.id]));
+        expect(Vault.I.subCollections(rootCol.id).map((c) => c.id), [subCol.id]);
+        expect(Vault.I.subCollections(subCol.id).map((c) => c.id), [subSubCol.id]);
+        expect(Vault.I.subCollections(subSubCol.id), isEmpty);
+      },
+    );
+
+    test(
+      '42. Validation rejects corrupted backup with invalid collection parentId',
+      () async {
+        final archive = Archive();
+        archive.addFile(
+          ArchiveFile.string(
+            'manifest.json',
+            jsonEncode({
+              'backupFormatVersion': 1,
+              'schemaVersion': 6,
+              'collectionCount': 1,
+            }),
+          ),
+        );
+        archive.addFile(
+          ArchiveFile.string(
+            'database.json',
+            jsonEncode({
+              'version': 1,
+              'schemaVersion': 6,
+              'collections': [
+                {
+                  'id': 'orphan_sub',
+                  'name': 'Orphan Child',
+                  'emoji': '📁',
+                  'parentId': 'nonexistent_parent_id',
+                  'createdAt': DateTime.now().toIso8601String(),
+                },
+              ],
+            }),
+          ),
+        );
+
+        final zipPath = p.join(tempDir.path, 'invalid_parent_backup.zip');
+        await File(zipPath).writeAsBytes(ZipEncoder().encode(archive));
+
+        final val = await restoreService.validateBackup(zipPath);
+        expect(val.isValid, isFalse);
+        expect(val.errorMessage, contains('nonexistent parent collection'));
+      },
+    );
+
+    test(
+      '43. Validation rejects corrupted backup with self-referencing collection parentId',
+      () async {
+        final archive = Archive();
+        archive.addFile(
+          ArchiveFile.string(
+            'manifest.json',
+            jsonEncode({
+              'backupFormatVersion': 1,
+              'schemaVersion': 6,
+              'collectionCount': 1,
+            }),
+          ),
+        );
+        archive.addFile(
+          ArchiveFile.string(
+            'database.json',
+            jsonEncode({
+              'version': 1,
+              'schemaVersion': 6,
+              'collections': [
+                {
+                  'id': 'self_ref_col',
+                  'name': 'Self Referring',
+                  'emoji': '🔄',
+                  'parentId': 'self_ref_col',
+                  'createdAt': DateTime.now().toIso8601String(),
+                },
+              ],
+            }),
+          ),
+        );
+
+        final zipPath = p.join(tempDir.path, 'self_ref_backup.zip');
+        await File(zipPath).writeAsBytes(ZipEncoder().encode(archive));
+
+        final val = await restoreService.validateBackup(zipPath);
+        expect(val.isValid, isFalse);
+        expect(val.errorMessage, contains('references itself as parent'));
+      },
+    );
+
+    test(
+      '44. Backward compatibility: legacy backup without parentId defaults parentId to null',
+      () async {
+        final archive = Archive();
+        archive.addFile(
+          ArchiveFile.string(
+            'manifest.json',
+            jsonEncode({
+              'backupFormatVersion': 1,
+              'schemaVersion': 5,
+              'collectionCount': 1,
+            }),
+          ),
+        );
+        archive.addFile(
+          ArchiveFile.string(
+            'database.json',
+            jsonEncode({
+              'version': 1,
+              'schemaVersion': 5,
+              'collections': [
+                {
+                  'id': 'legacy_col_1',
+                  'name': 'Legacy Root Collection',
+                  'emoji': '📁',
+                  'createdAt': DateTime.now().toIso8601String(),
+                },
+              ],
+            }),
+          ),
+        );
+
+        final zipPath = p.join(tempDir.path, 'legacy_no_parent_backup.zip');
+        await File(zipPath).writeAsBytes(ZipEncoder().encode(archive));
+
+        final val = await restoreService.validateBackup(zipPath);
+        expect(val.isValid, isTrue);
+
+        await restoreService.restoreBackup(zipPath);
+        await Vault.I.reloadFromDb();
+
+        final restored = Vault.I.collections.firstWhere((c) => c.id == 'legacy_col_1');
+        expect(restored.parentId, isNull);
+        expect(Vault.I.rootCollections.map((c) => c.id), contains('legacy_col_1'));
       },
     );
   });

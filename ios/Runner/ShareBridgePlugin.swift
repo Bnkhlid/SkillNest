@@ -3,8 +3,9 @@ import UIKit
 
 /// Delivers a link saved by the iOS Share Extension to Flutter.
 final class ShareBridgePlugin: NSObject, FlutterPlugin {
-  private static let appGroup = "group.com.learningvault.learningVault"
-  private static let sharedTextKey = "skillnest.sharedText"
+  static let appGroup = "group.com.learningvault.learningVault"
+  static let sharedTextKey = "skillnest.sharedText"
+  private(set) static var shared: ShareBridgePlugin?
   private var channel: FlutterMethodChannel?
 
   static func register(with registrar: FlutterPluginRegistrar) {
@@ -14,6 +15,7 @@ final class ShareBridgePlugin: NSObject, FlutterPlugin {
     )
     let instance = ShareBridgePlugin()
     instance.channel = channel
+    Self.shared = instance
     registrar.addMethodCallDelegate(instance, channel: channel)
     registrar.addApplicationDelegate(instance)
   }
@@ -41,18 +43,32 @@ final class ShareBridgePlugin: NSObject, FlutterPlugin {
     }
   }
 
+  /// Checks if there is pending shared text and dispatches it over the channel if available.
+  @discardableResult
+  static func checkAndDispatchPendingShare() -> Bool {
+    let defaults = UserDefaults(suiteName: appGroup)
+    if let text = defaults?.string(forKey: sharedTextKey), !text.isEmpty {
+      defaults?.removeObject(forKey: sharedTextKey)
+      shared?.channel?.invokeMethod("onSharedTextReceived", arguments: text)
+      return true
+    }
+    return false
+  }
+
+  /// Handles incoming custom URL scheme (e.g., skillnest://shared).
+  @discardableResult
+  static func handleIncomingUrl(_ url: URL) -> Bool {
+    guard url.scheme?.lowercased() == "skillnest" else { return false }
+    return checkAndDispatchPendingShare()
+  }
+
   /// The share extension opens skillnest://shared after saving its payload.
-  /// When the app was already running, forward it directly to Flutter so the
-  /// Add Resource screen opens just like it does on a cold start.
+  /// When the app was already running without scenes, forward it directly to Flutter.
   func application(
     _ app: UIApplication,
     open url: URL,
     options: [UIApplication.OpenURLOptionsKey: Any] = [:]
   ) -> Bool {
-    guard url.scheme?.lowercased() == "skillnest" else { return false }
-    if let text = UserDefaults(suiteName: Self.appGroup)?.string(forKey: Self.sharedTextKey) {
-      channel?.invokeMethod("onSharedTextReceived", arguments: text)
-    }
-    return true
+    return Self.handleIncomingUrl(url)
   }
 }

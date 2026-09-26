@@ -69,7 +69,7 @@ void main() {
     test(
       '1. Database starts with schema version 4 and analytics_events table ready',
       () async {
-        expect(db.schemaVersion, 5);
+        expect(db.schemaVersion, 6);
         final count = await eventDao.countEvents();
         expect(count, 0);
       },
@@ -650,7 +650,7 @@ void main() {
           utf8.decode(archive.findFile('manifest.json')!.content as List<int>),
         );
         expect(manifestJson['analyticsEventCount'], res.analyticsEventCount);
-        expect(manifestJson['schemaVersion'], 5);
+        expect(manifestJson['schemaVersion'], 6);
       },
     );
 
@@ -849,7 +849,7 @@ void main() {
       '38. Drift schema migration creates analytics_events table on upgrade from v3',
       () async {
         final m = db.createMigrator();
-        expect(db.schemaVersion, 5);
+        expect(db.schemaVersion, 6);
         // The in-memory fixture already uses the current resources table. Keep
         // this legacy check focused on the v3 → v4 analytics migration.
         expect(() => db.migration.onUpgrade(m, 3, 4), returnsNormally);

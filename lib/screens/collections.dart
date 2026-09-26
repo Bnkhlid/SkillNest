@@ -13,13 +13,14 @@ class CollectionsScreen extends StatelessWidget {
     Navigator.pushNamed(context, '/collection', arguments: c.id);
   }
 
-  Future<void> _create(BuildContext context) async {
-    final draft = await showCollectionEditor(context);
+  Future<void> _create(BuildContext context, [String? parentId]) async {
+    final draft = await showCollectionEditor(context, initialParentId: parentId);
     if (draft != null && context.mounted) {
       await Vault.I.addCollection(
         draft.name,
         emoji: draft.emoji,
         accent: draft.accent,
+        parentId: draft.parentId,
       );
       if (context.mounted) {
         LvSnackbar.show(
@@ -44,6 +45,11 @@ class CollectionsScreen extends StatelessWidget {
             onTap: () => Navigator.pop(ctx, 'open'),
           ),
           LvSheetAction(
+            icon: Icons.create_new_folder_outlined,
+            label: 'Add sub-collection',
+            onTap: () => Navigator.pop(ctx, 'add_sub'),
+          ),
+          LvSheetAction(
             icon: Icons.edit_outlined,
             label: 'Edit collection',
             onTap: () => Navigator.pop(ctx, 'edit'),
@@ -61,6 +67,8 @@ class CollectionsScreen extends StatelessWidget {
       switch (action) {
         case 'open':
           _open(context, c);
+        case 'add_sub':
+          _create(context, c.id);
         case 'edit':
           final draft = await showCollectionEditor(context, collection: c);
           if (draft != null) {
@@ -69,6 +77,7 @@ class CollectionsScreen extends StatelessWidget {
               draft.name,
               emoji: draft.emoji,
               accent: draft.accent,
+              parentId: draft.parentId,
             );
           }
         case 'delete':
@@ -97,29 +106,30 @@ class CollectionsScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final vault = Vault.I;
+    final scheme = Theme.of(context).colorScheme;
     return Scaffold(
-      backgroundColor: NotedColors.canvasLight,
+      backgroundColor: scheme.surface,
       appBar: AppBar(
-        backgroundColor: NotedColors.canvasLight,
+        backgroundColor: scheme.surface,
         leading: Navigator.canPop(context)
             ? IconButton(
-                icon: const Icon(
+                icon: Icon(
                   Icons.arrow_back_rounded,
-                  color: NotedColors.ink,
+                  color: scheme.onSurface,
                 ),
                 tooltip: 'Back',
                 onPressed: () => Navigator.pop(context),
               )
             : null,
-        title: const Text(
+        title: Text(
           'Collections',
-          style: TextStyle(color: NotedColors.ink, fontWeight: FontWeight.w800),
+          style: TextStyle(color: scheme.onSurface, fontWeight: FontWeight.w800),
         ),
         actions: [
           IconButton(
             tooltip: 'New collection',
             onPressed: () => _create(context),
-            icon: const Icon(Icons.add_rounded, color: NotedColors.ink),
+            icon: Icon(Icons.add_rounded, color: scheme.onSurface),
           ),
           const SizedBox(width: 4),
         ],
@@ -127,7 +137,8 @@ class CollectionsScreen extends StatelessWidget {
       body: ListenableBuilder(
         listenable: vault,
         builder: (context, _) {
-          if (vault.collections.isEmpty) {
+          final roots = vault.rootCollections;
+          if (roots.isEmpty) {
             return EmptyState(
               icon: Icons.collections_bookmark_outlined,
               title: 'No collections yet',
@@ -145,9 +156,9 @@ class CollectionsScreen extends StatelessWidget {
               crossAxisSpacing: 12,
               childAspectRatio: 0.94,
             ),
-            itemCount: vault.collections.length,
+            itemCount: roots.length,
             itemBuilder: (context, i) {
-              final c = vault.collections[i];
+              final c = roots[i];
               return CollectionCard(
                 collection: c,
                 onOpen: () => _open(context, c),
@@ -208,15 +219,20 @@ class _CollectionDetailScreenState extends State<CollectionDetailScreen> {
             );
         }
 
+        final scheme = Theme.of(context).colorScheme;
+        final isDark = Theme.of(context).brightness == Brightness.dark;
+        final subCollections = Vault.I.subCollections(c.id);
+
         return Scaffold(
-          backgroundColor: NotedColors.canvasLight,
+          resizeToAvoidBottomInset: false,
+          backgroundColor: scheme.surface,
           appBar: AppBar(
-            backgroundColor: NotedColors.canvasLight,
-            leading: const BackButton(color: NotedColors.ink),
+            backgroundColor: scheme.surface,
+            leading: BackButton(color: scheme.onSurface),
             title: Text(
               '${c.emoji} ${c.name}',
-              style: const TextStyle(
-                color: NotedColors.ink,
+              style: TextStyle(
+                color: scheme.onSurface,
                 fontWeight: FontWeight.w800,
               ),
             ),
@@ -248,31 +264,206 @@ class _CollectionDetailScreenState extends State<CollectionDetailScreen> {
                   ),
                 ),
               ),
+
+              // Sub-collections section
+              Padding(
+                padding: const EdgeInsets.fromLTRB(Insets.m, 4, Insets.m, 4),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Text(
+                          'SUB-COLLECTIONS${subCollections.isNotEmpty ? ' (${subCollections.length})' : ''}',
+                          style: const TextStyle(
+                            fontSize: 11.5,
+                            fontWeight: FontWeight.w800,
+                            letterSpacing: 0.5,
+                            color: NotedColors.inkMuted,
+                          ),
+                        ),
+                        TextButton.icon(
+                          style: TextButton.styleFrom(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 6,
+                              vertical: 2,
+                            ),
+                            minimumSize: Size.zero,
+                            tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                          ),
+                          onPressed: () => _createSubCollection(context, c),
+                          icon: Icon(
+                            Icons.add_rounded,
+                            size: 15,
+                            color: scheme.onSurface,
+                          ),
+                          label: Text(
+                            'Add Sub-collection',
+                            style: TextStyle(
+                              fontSize: 11.5,
+                              fontWeight: FontWeight.w800,
+                              color: scheme.onSurface,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                    if (subCollections.isNotEmpty) ...[
+                      const SizedBox(height: 6),
+                      SizedBox(
+                        height: 72,
+                        child: ListView.separated(
+                          scrollDirection: Axis.horizontal,
+                          clipBehavior: Clip.none,
+                          itemCount: subCollections.length,
+                          separatorBuilder: (_, _) => const SizedBox(width: 10),
+                          itemBuilder: (context, idx) {
+                            final sub = subCollections[idx];
+                            final subCount =
+                                Vault.I.byCollection(sub.id).length;
+                            return InkWell(
+                              onTap: () => Navigator.pushNamed(
+                                context,
+                                '/collection',
+                                arguments: sub.id,
+                              ),
+                              borderRadius: BorderRadius.circular(14),
+                              child: Container(
+                                width: 140,
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 10,
+                                  vertical: 8,
+                                ),
+                                decoration: NotedBox.card(
+                                  color: NotedColors.pastelCard(sub.accent, isDark: isDark),
+                                  radius: 14,
+                                  borderColor: isDark
+                                      ? NotedColors.collectionAccent(sub.accent).withValues(alpha: 0.4)
+                                      : NotedColors.border,
+                                ),
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  mainAxisAlignment: MainAxisAlignment.center,
+                                  children: [
+                                    Row(
+                                      children: [
+                                        Text(
+                                          sub.emoji,
+                                          style: const TextStyle(fontSize: 16),
+                                        ),
+                                        const SizedBox(width: 6),
+                                        Expanded(
+                                          child: Text(
+                                            sub.name,
+                                            maxLines: 1,
+                                            overflow: TextOverflow.ellipsis,
+                                            style: TextStyle(
+                                              fontWeight: FontWeight.w800,
+                                              fontSize: 13,
+                                              color: scheme.onSurface,
+                                            ),
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                    const SizedBox(height: 4),
+                                    Text(
+                                      '$subCount item${subCount == 1 ? '' : 's'}',
+                                      style: TextStyle(
+                                        fontSize: 11,
+                                        fontWeight: FontWeight.w600,
+                                        color: isDark ? scheme.onSurfaceVariant : NotedColors.inkMuted,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            );
+                          },
+                        ),
+                      ),
+                    ],
+                  ],
+                ),
+              ),
+
               // Status filter chips
               Padding(
-                padding: const EdgeInsets.fromLTRB(Insets.m, 4, Insets.s, 8),
+                padding: const EdgeInsets.fromLTRB(Insets.m, 4, Insets.m, 8),
                 child: Row(
                   children: [
                     Expanded(
                       child: SingleChildScrollView(
                         scrollDirection: Axis.horizontal,
+                        clipBehavior: Clip.none,
                         child: Row(
                           children: [
-                            for (final s in [null, ...ResourceStatus.values])
-                              Padding(
-                                padding: const EdgeInsets.only(right: 8),
-                                child: FilterChip(
-                                  label: Text(s == null ? 'All' : s.label),
-                                  selected: _statusFilter == s,
-                                  onSelected: (v) => setState(
-                                    () => _statusFilter = v ? s : null,
-                                  ),
-                                ),
+                            for (final s in [null, ...ResourceStatus.values]) ...[
+                              Builder(
+                                builder: (context) {
+                                  final isSelected = _statusFilter == s;
+                                  return Padding(
+                                    padding: const EdgeInsets.only(right: 8),
+                                    child: InkWell(
+                                      onTap: () => setState(
+                                        () => _statusFilter = isSelected ? null : s,
+                                      ),
+                                      borderRadius: BorderRadius.circular(20),
+                                      child: AnimatedContainer(
+                                        duration: const Duration(
+                                          milliseconds: 150,
+                                        ),
+                                        padding: const EdgeInsets.symmetric(
+                                          horizontal: 14,
+                                          vertical: 7,
+                                        ),
+                                        decoration: BoxDecoration(
+                                          color: isSelected
+                                              ? (isDark ? const Color(0xFF352C16) : NotedColors.yellow)
+                                              : (isDark ? scheme.surfaceContainerHigh : Colors.white),
+                                          borderRadius: BorderRadius.circular(
+                                            20,
+                                          ),
+                                          border: Border.all(
+                                            color: isDark
+                                                ? (isSelected ? const Color(0xFFFFC107) : scheme.outlineVariant)
+                                                : NotedColors.border,
+                                            width: isSelected ? 2.2 : 1.6,
+                                          ),
+                                          boxShadow: isSelected
+                                              ? [
+                                                  BoxShadow(
+                                                    color: isDark ? Colors.black45 : NotedColors.shadow,
+                                                    offset: const Offset(1.5, 2),
+                                                    blurRadius: 0,
+                                                  ),
+                                                ]
+                                              : null,
+                                        ),
+                                        child: Text(
+                                          s == null ? 'All' : s.label,
+                                          style: TextStyle(
+                                            fontSize: 13,
+                                            fontWeight: isSelected
+                                                ? FontWeight.w800
+                                                : FontWeight.w600,
+                                            color: isSelected
+                                                ? (isDark ? Colors.white : NotedColors.ink)
+                                                : scheme.onSurface,
+                                          ),
+                                        ),
+                                      ),
+                                    ),
+                                  );
+                                },
                               ),
+                            ],
                           ],
                         ),
                       ),
                     ),
+                    const SizedBox(width: 4),
                     LvIconBtn(
                       icon: Icons.sort_rounded,
                       tooltip: 'Sort',
@@ -490,6 +681,30 @@ class _CollectionDetailScreenState extends State<CollectionDetailScreen> {
     }
   }
 
+  Future<void> _createSubCollection(
+    BuildContext context,
+    CollectionModel parent,
+  ) async {
+    final draft = await showCollectionEditor(
+      context,
+      initialParentId: parent.id,
+    );
+    if (draft != null && context.mounted) {
+      await Vault.I.addCollection(
+        draft.name,
+        emoji: draft.emoji,
+        accent: draft.accent,
+        parentId: draft.parentId ?? parent.id,
+      );
+      if (context.mounted) {
+        LvSnackbar.show(
+          context,
+          'Sub-collection \u201C${draft.name}\u201D created in ${parent.name}',
+        );
+      }
+    }
+  }
+
   void _moreMenu(BuildContext context, CollectionModel c) {
     final scheme = Theme.of(context).colorScheme;
     LvSheet.show<String>(
@@ -498,6 +713,11 @@ class _CollectionDetailScreenState extends State<CollectionDetailScreen> {
       builder: (ctx) => Column(
         mainAxisSize: MainAxisSize.min,
         children: [
+          LvSheetAction(
+            icon: Icons.create_new_folder_outlined,
+            label: 'Add sub-collection',
+            onTap: () => Navigator.pop(ctx, 'add_sub'),
+          ),
           LvSheetAction(
             icon: Icons.edit_outlined,
             label: 'Edit collection',
@@ -513,7 +733,9 @@ class _CollectionDetailScreenState extends State<CollectionDetailScreen> {
       ),
     ).then((a) async {
       if (a == null || !context.mounted) return;
-      if (a == 'edit') {
+      if (a == 'add_sub') {
+        _createSubCollection(context, c);
+      } else if (a == 'edit') {
         final draft = await showCollectionEditor(context, collection: c);
         if (draft != null) {
           await Vault.I.renameCollection(
@@ -521,6 +743,7 @@ class _CollectionDetailScreenState extends State<CollectionDetailScreen> {
             draft.name,
             emoji: draft.emoji,
             accent: draft.accent,
+            parentId: draft.parentId,
           );
         }
       } else if (a == 'delete') {
@@ -549,25 +772,32 @@ class CollectionDraft {
     required this.name,
     required this.emoji,
     required this.accent,
+    this.parentId,
   });
   final String name;
   final String emoji;
   final int accent;
+  final String? parentId;
 }
 
 Future<CollectionDraft?> showCollectionEditor(
   BuildContext context, {
   CollectionModel? collection,
+  String? initialParentId,
 }) {
   return showDialog<CollectionDraft>(
     context: context,
-    builder: (_) => _CollectionEditor(collection: collection),
+    builder: (_) => _CollectionEditor(
+      collection: collection,
+      initialParentId: initialParentId,
+    ),
   );
 }
 
 class _CollectionEditor extends StatefulWidget {
-  const _CollectionEditor({this.collection});
+  const _CollectionEditor({this.collection, this.initialParentId});
   final CollectionModel? collection;
+  final String? initialParentId;
 
   @override
   State<_CollectionEditor> createState() => _CollectionEditorState();
@@ -586,17 +816,10 @@ class _CollectionEditorState extends State<_CollectionEditor> {
     '🎬',
     '📝',
   ];
-  static const _colors = [
-    NotedColors.yellowLight,
-    NotedColors.mintLight,
-    NotedColors.pinkLight,
-    NotedColors.purpleLight,
-    NotedColors.blueLight,
-    Color(0xFFFDEED8),
-  ];
   late final TextEditingController _name;
   late final TextEditingController _emoji;
   late int _accent;
+  String? _parentId;
 
   @override
   void initState() {
@@ -604,6 +827,7 @@ class _CollectionEditorState extends State<_CollectionEditor> {
     _name = TextEditingController(text: widget.collection?.name ?? '');
     _emoji = TextEditingController(text: widget.collection?.emoji ?? '📚');
     _accent = widget.collection?.accent ?? 0;
+    _parentId = widget.collection?.parentId ?? widget.initialParentId;
   }
 
   @override
@@ -615,11 +839,21 @@ class _CollectionEditorState extends State<_CollectionEditor> {
 
   @override
   Widget build(BuildContext context) {
+    // Avoid cyclic parenting
+    final availableParents = Vault.I.collections
+        .where((c) => c.id != widget.collection?.id)
+        .toList();
+    final scheme = Theme.of(context).colorScheme;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
     return AlertDialog(
-      backgroundColor: NotedColors.canvasLight,
+      backgroundColor: scheme.surface,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(Radii.dialog),
-        side: const BorderSide(color: NotedColors.border, width: 2),
+        side: BorderSide(
+          color: isDark ? scheme.outlineVariant : NotedColors.border,
+          width: 2,
+        ),
       ),
       title: Text(
         widget.collection == null ? 'New collection' : 'Edit collection',
@@ -642,6 +876,57 @@ class _CollectionEditorState extends State<_CollectionEditor> {
                 ),
               ),
               const SizedBox(height: 16),
+              if (availableParents.isNotEmpty) ...[
+                const Text(
+                  'Parent Collection',
+                  style: TextStyle(fontWeight: FontWeight.w800),
+                ),
+                const SizedBox(height: 6),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 12),
+                  decoration: BoxDecoration(
+                    color: isDark ? scheme.surfaceContainerHigh : Colors.white,
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(
+                      color: isDark ? scheme.outlineVariant : NotedColors.border,
+                      width: 1.5,
+                    ),
+                  ),
+                  child: DropdownButtonHideUnderline(
+                    child: DropdownButton<String?>(
+                      isExpanded: true,
+                      dropdownColor: isDark ? scheme.surfaceContainerHigh : Colors.white,
+                      value: _parentId,
+                      items: [
+                        DropdownMenuItem<String?>(
+                          value: null,
+                          child: Text(
+                            'None (Root Collection)',
+                            style: TextStyle(
+                              fontWeight: FontWeight.w600,
+                              color: scheme.onSurface,
+                            ),
+                          ),
+                        ),
+                        ...availableParents.map(
+                          (p) => DropdownMenuItem<String?>(
+                            value: p.id,
+                            child: Text(
+                              '${p.emoji} ${p.name}',
+                              style: TextStyle(
+                                fontWeight: FontWeight.w600,
+                                color: scheme.onSurface,
+                              ),
+                            ),
+                          ),
+                        ),
+                      ],
+                      onChanged: (val) => setState(() => _parentId = val),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 16),
+              ],
               const Text(
                 'Emoji',
                 style: TextStyle(fontWeight: FontWeight.w800),
@@ -682,26 +967,48 @@ class _CollectionEditorState extends State<_CollectionEditor> {
               Wrap(
                 spacing: 11,
                 children: List.generate(
-                  _colors.length,
-                  (index) => InkWell(
-                    borderRadius: BorderRadius.circular(22),
-                    onTap: () => setState(() => _accent = index),
-                    child: Container(
-                      width: 34,
-                      height: 34,
-                      decoration: BoxDecoration(
-                        color: _colors[index],
-                        shape: BoxShape.circle,
-                        border: Border.all(
-                          color: NotedColors.border,
-                          width: _accent == index ? 3 : 1.5,
+                  6,
+                  (index) {
+                    final cardColor = NotedColors.pastelCard(index, isDark: isDark);
+                    final accentColor = NotedColors.collectionAccent(index);
+                    final isSelected = _accent == index;
+                    return InkWell(
+                      borderRadius: BorderRadius.circular(22),
+                      onTap: () => setState(() => _accent = index),
+                      child: Container(
+                        width: 36,
+                        height: 36,
+                        decoration: BoxDecoration(
+                          color: cardColor,
+                          shape: BoxShape.circle,
+                          border: Border.all(
+                            color: isSelected
+                                ? accentColor
+                                : (isDark
+                                    ? accentColor.withValues(alpha: 0.55)
+                                    : NotedColors.border),
+                            width: isSelected ? 3 : 1.5,
+                          ),
+                          boxShadow: isSelected
+                              ? [
+                                  BoxShadow(
+                                    color: accentColor.withValues(alpha: 0.4),
+                                    blurRadius: 4,
+                                    spreadRadius: 1,
+                                  ),
+                                ]
+                              : null,
                         ),
+                        child: isSelected
+                            ? Icon(
+                                Icons.check_rounded,
+                                size: 20,
+                                color: accentColor,
+                              )
+                            : null,
                       ),
-                      child: _accent == index
-                          ? const Icon(Icons.check_rounded, size: 19)
-                          : null,
-                    ),
-                  ),
+                    );
+                  },
                 ),
               ),
             ],
@@ -722,7 +1029,12 @@ class _CollectionEditorState extends State<_CollectionEditor> {
                 : _emoji.text.trim();
             Navigator.pop(
               context,
-              CollectionDraft(name: name, emoji: emoji, accent: _accent),
+              CollectionDraft(
+                name: name,
+                emoji: emoji,
+                accent: _accent,
+                parentId: _parentId,
+              ),
             );
           },
           child: Text(widget.collection == null ? 'Create' : 'Save'),

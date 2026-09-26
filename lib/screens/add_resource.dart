@@ -9,6 +9,8 @@ import '../core/utils/url_normalizer.dart';
 import '../models.dart';
 import '../vault.dart';
 import '../widgets/components.dart';
+import '../main.dart' show RoutePaths;
+import 'collections.dart';
 
 enum AddSource { link, note, file, share }
 
@@ -199,12 +201,19 @@ class _AddResourceScreenState extends State<AddResourceScreen> {
 
       if (!mounted) return;
       final messenger = ScaffoldMessenger.of(context);
-      final rootNav = Navigator.of(context, rootNavigator: true);
-      Navigator.pop(context);
+      final nav = Navigator.of(context);
+      nav.pushNamedAndRemoveUntil(
+        RoutePaths.root,
+        (route) => false,
+      );
+      nav.pushNamed(
+        RoutePaths.details,
+        arguments: item.id,
+      );
       final scheme = Theme.of(context).colorScheme;
       messenger.showSnackBar(
         SnackBar(
-          duration: const Duration(seconds: 5),
+          duration: const Duration(seconds: 4),
           content: Row(
             children: [
               Icon(
@@ -213,12 +222,7 @@ class _AddResourceScreenState extends State<AddResourceScreen> {
                 color: scheme.inversePrimary,
               ),
               const SizedBox(width: 10),
-              const Expanded(child: Text('Saved to Inbox')),
-              _snackAction(
-                'Open Inbox',
-                scheme,
-                () => rootNav.pushNamed('/inbox'),
-              ),
+              const Expanded(child: Text('Resource saved')),
               const SizedBox(width: 12),
               _snackAction('Undo', scheme, () => Vault.I.delete(item.id)),
             ],
@@ -316,17 +320,17 @@ class _AddResourceScreenState extends State<AddResourceScreen> {
     final vault = Vault.I;
 
     return Scaffold(
-      backgroundColor: NotedColors.canvasLight,
+      backgroundColor: scheme.surface,
       appBar: AppBar(
-        backgroundColor: NotedColors.canvasLight,
+        backgroundColor: scheme.surface,
         leading: IconButton(
-          icon: const Icon(Icons.close_rounded, color: NotedColors.ink),
+          icon: Icon(Icons.close_rounded, color: scheme.onSurface),
           tooltip: 'Cancel',
           onPressed: () => Navigator.pop(context),
         ),
-        title: const Text(
+        title: Text(
           'Add Resource',
-          style: TextStyle(color: NotedColors.ink, fontWeight: FontWeight.w800),
+          style: TextStyle(color: scheme.onSurface, fontWeight: FontWeight.w800),
         ),
       ),
       bottomNavigationBar: _saveBar(context),
@@ -501,10 +505,14 @@ class _AddResourceScreenState extends State<AddResourceScreen> {
                 fileSize: _pickedFileSize!,
               ).humanSize
             : null;
+        final isDark = Theme.of(context).brightness == Brightness.dark;
         return Column(
           children: [
             Container(
-              decoration: NotedBox.card(color: Colors.white, radius: 18),
+              decoration: NotedBox.card(
+                color: isDark ? scheme.surfaceContainerLow : Colors.white,
+                radius: 18,
+              ),
               clipBehavior: Clip.antiAlias,
               child: Material(
                 color: Colors.transparent,
@@ -514,18 +522,18 @@ class _AddResourceScreenState extends State<AddResourceScreen> {
                     padding: const EdgeInsets.all(20),
                     child: Column(
                       children: [
-                        const Icon(
+                        Icon(
                           Icons.upload_file_rounded,
                           size: 38,
-                          color: NotedColors.ink,
+                          color: scheme.onSurface,
                         ),
                         const SizedBox(height: 10),
                         Text(
                           _pickedFileName ?? 'Choose a file',
-                          style: const TextStyle(
+                          style: TextStyle(
                             fontSize: 14.5,
                             fontWeight: FontWeight.w800,
-                            color: NotedColors.ink,
+                            color: scheme.onSurface,
                           ),
                           textAlign: TextAlign.center,
                         ),
@@ -603,26 +611,31 @@ class _AddResourceScreenState extends State<AddResourceScreen> {
             ),
             ...vault.collections.map(
               (c) => ChoiceChip(
-                label: Text('${c.emoji} ${c.name}'),
+                label: Text(
+                  c.parentId != null && c.parentId!.isNotEmpty
+                      ? vault.getCollectionPath(c.id)
+                      : '${c.emoji} ${c.name}',
+                ),
                 selected: _collectionId == c.id,
                 onSelected: (_) => setState(() => _collectionId = c.id),
               ),
             ),
             ActionChip(
-              avatar: const Icon(
+              avatar: Icon(
                 Icons.add_rounded,
                 size: 17,
-                color: NotedColors.ink,
+                color: scheme.onSurface,
               ),
               label: const Text('Add Collection'),
               onPressed: () async {
-                final name = await LvDialog.prompt(
-                  context,
-                  title: 'New collection',
-                  hint: 'e.g. Writing',
-                );
-                if (name != null && name.isNotEmpty && mounted) {
-                  final c = await Vault.I.addCollection(name);
+                final draft = await showCollectionEditor(context);
+                if (draft != null && mounted) {
+                  final c = await Vault.I.addCollection(
+                    draft.name,
+                    emoji: draft.emoji,
+                    accent: draft.accent,
+                    parentId: draft.parentId,
+                  );
                   setState(() => _collectionId = c.id);
                 }
               },
@@ -659,10 +672,10 @@ class _AddResourceScreenState extends State<AddResourceScreen> {
               ),
             ),
             ActionChip(
-              avatar: const Icon(
+              avatar: Icon(
                 Icons.add_rounded,
                 size: 17,
-                color: NotedColors.ink,
+                color: scheme.onSurface,
               ),
               label: const Text('Add Tag'),
               onPressed: () async {
@@ -682,24 +695,32 @@ class _AddResourceScreenState extends State<AddResourceScreen> {
     );
   }
 
-  TextStyle _labelStyle(ColorScheme scheme) => const TextStyle(
+  TextStyle _labelStyle(ColorScheme scheme) => TextStyle(
     fontSize: 14,
     fontWeight: FontWeight.w800,
     letterSpacing: -0.2,
-    color: NotedColors.ink,
+    color: scheme.onSurface,
   );
 
   /// Save bar — floats above the keyboard when a field is focused.
   Widget _saveBar(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
     return AnimatedPadding(
       duration: const Duration(milliseconds: 200),
       padding: EdgeInsets.only(
         bottom: MediaQuery.of(context).viewInsets.bottom,
       ),
       child: Container(
-        decoration: const BoxDecoration(
-          color: Colors.white,
-          border: Border(top: BorderSide(color: NotedColors.border, width: 2)),
+        decoration: BoxDecoration(
+          color: isDark ? scheme.surfaceContainerLowest : Colors.white,
+          border: Border(
+            top: BorderSide(
+              color: isDark ? scheme.outlineVariant : NotedColors.border,
+              width: 2,
+            ),
+          ),
         ),
         child: SafeArea(
           top: false,
@@ -710,10 +731,10 @@ class _AddResourceScreenState extends State<AddResourceScreen> {
                 Expanded(
                   child: OutlinedButton(
                     style: OutlinedButton.styleFrom(
-                      backgroundColor: Colors.white,
-                      foregroundColor: NotedColors.ink,
-                      side: const BorderSide(
-                        color: NotedColors.border,
+                      backgroundColor: isDark ? scheme.surfaceContainerLow : Colors.white,
+                      foregroundColor: isDark ? Colors.white : NotedColors.ink,
+                      side: BorderSide(
+                        color: isDark ? scheme.outlineVariant : NotedColors.border,
                         width: 2,
                       ),
                     ),
@@ -730,31 +751,37 @@ class _AddResourceScreenState extends State<AddResourceScreen> {
                   child: ElevatedButton(
                     style: ElevatedButton.styleFrom(
                       backgroundColor: _canSave
-                          ? NotedColors.yellow
-                          : const Color(0xFFE5DFD1),
-                      foregroundColor: NotedColors.ink,
-                      side: const BorderSide(
-                        color: NotedColors.border,
+                          ? (isDark ? const Color(0xFF352C16) : NotedColors.yellow)
+                          : (isDark ? scheme.surfaceContainerHigh : const Color(0xFFE5DFD1)),
+                      foregroundColor: _canSave
+                          ? (isDark ? Colors.white : NotedColors.ink)
+                          : (isDark ? scheme.onSurface.withValues(alpha: 0.35) : NotedColors.inkMuted),
+                      side: BorderSide(
+                        color: _canSave
+                            ? (isDark ? const Color(0xFFFFC107) : NotedColors.border)
+                            : (isDark ? scheme.outlineVariant.withValues(alpha: 0.4) : NotedColors.border.withValues(alpha: 0.4)),
                         width: 2,
                       ),
                     ),
                     onPressed: _canSave && !_saving ? _save : null,
                     child: _saving
-                        ? const SizedBox(
+                        ? SizedBox(
                             width: 20,
                             height: 20,
                             child: CircularProgressIndicator(
                               strokeWidth: 2,
-                              color: NotedColors.ink,
+                              color: isDark ? Colors.white : NotedColors.ink,
                             ),
                           )
                         : Text(
                             _tab == _SourceTab.paste
                                 ? 'Save Note'
                                 : 'Save Resource',
-                            style: const TextStyle(
+                            style: TextStyle(
                               fontWeight: FontWeight.w800,
-                              color: NotedColors.ink,
+                              color: _canSave
+                                  ? (isDark ? Colors.white : NotedColors.ink)
+                                  : (isDark ? scheme.onSurface.withValues(alpha: 0.35) : NotedColors.inkMuted),
                             ),
                           ),
                   ),

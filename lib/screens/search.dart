@@ -85,22 +85,22 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
     final vault = Vault.I;
 
     return Scaffold(
-      backgroundColor: NotedColors.canvasLight,
+      backgroundColor: scheme.surface,
       appBar: AppBar(
-        backgroundColor: NotedColors.canvasLight,
+        backgroundColor: scheme.surface,
         leading: Navigator.canPop(context)
             ? IconButton(
-                icon: const Icon(
+                icon: Icon(
                   Icons.arrow_back_rounded,
-                  color: NotedColors.ink,
+                  color: scheme.onSurface,
                 ),
                 tooltip: 'Back',
                 onPressed: () => Navigator.pop(context),
               )
             : null,
-        title: const Text(
+        title: Text(
           'Search',
-          style: TextStyle(color: NotedColors.ink, fontWeight: FontWeight.w800),
+          style: TextStyle(color: scheme.onSurface, fontWeight: FontWeight.w800),
         ),
       ),
       body: ListenableBuilder(

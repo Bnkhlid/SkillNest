@@ -71,12 +71,16 @@ class Vault extends ChangeNotifier {
   final List<VaultNotification> notifications = [];
   final List<String> recentSearches = [];
 
-  String userName = 'Mohamed';
+  String userName = '';
   String userEmail = '';
+  String? userAvatarPath;
   ThemeMode themeMode = ThemeMode.light;
 
   bool offlineDemo = false; // simulates no connection across the app
   bool simulateBackupFailure = false; // demo switch for error states
+
+  /// Explicitly notify listeners when external services modify vault state.
+  void forceNotify() => notifyListeners();
   bool dailyDigest = true;
   bool weeklyReport = true;
   bool unreadReminders = false;
@@ -89,6 +93,169 @@ class Vault extends ChangeNotifier {
   bool get firstRunDone => _firstRunDone;
   bool _notificationOnboardingHandled = false;
   bool get notificationOnboardingHandled => _notificationOnboardingHandled;
+
+  Future<File> _getNotificationsFile() async {
+    try {
+      final appDocDir = await getApplicationDocumentsDirectory();
+      final dir = Directory(p.join(appDocDir.path, 'skillnest'));
+      if (!await dir.exists()) {
+        await dir.create(recursive: true);
+      }
+      return File(p.join(dir.path, 'app_notifications.json'));
+    } catch (_) {
+      return File('app_notifications.json');
+    }
+  }
+
+  final Set<String> _dismissedNotificationKeys = {};
+
+  Future<void> _loadNotifications({bool mergeOnly = false}) async {
+    try {
+      final file = await _getNotificationsFile();
+      if (await file.exists()) {
+        final content = await file.readAsString();
+        final list = jsonDecode(content) as List<dynamic>;
+        if (!mergeOnly) {
+          notifications.clear();
+        }
+        bool changed = false;
+        for (final item in list) {
+          final m = item as Map<String, dynamic>;
+          final id = m['id'] as String? ?? 'n_${DateTime.now().microsecondsSinceEpoch}';
+          final title = m['title'] as String? ?? '';
+          final body = m['body'] as String? ?? '';
+          if (title.isEmpty && body.isEmpty) continue;
+
+          final sig = '$title|||$body';
+          if (mergeOnly && (_dismissedNotificationKeys.contains(sig) || _dismissedNotificationKeys.contains(id))) {
+            continue;
+          }
+
+          if (mergeOnly) {
+            final alreadyPresent = notifications.any(
+              (n) => n.id == id || (n.title == title && n.body == body),
+            );
+            if (alreadyPresent) continue;
+            notifications.insert(
+              0,
+              VaultNotification(
+                id: id,
+                title: title,
+                body: body,
+                read: m['read'] as bool? ?? false,
+                resourceId: m['resourceId'] as String?,
+                icon: Icons.notifications_outlined,
+              ),
+            );
+            changed = true;
+          } else {
+            notifications.add(
+              VaultNotification(
+                id: id,
+                title: title,
+                body: body,
+                read: m['read'] as bool? ?? false,
+                resourceId: m['resourceId'] as String?,
+                icon: Icons.notifications_outlined,
+              ),
+            );
+          }
+        }
+        if (mergeOnly && changed) {
+          if (notifications.length > 50) {
+            notifications.removeRange(50, notifications.length);
+          }
+          await _saveNotifications();
+          notifyListeners();
+        }
+      }
+    } catch (_) {}
+  }
+
+  /// Scans the system tray for active notifications (e.g. Firebase Console
+  /// push notifications received while backgrounded) and synchronizes them
+  /// into the in-app notification bell.
+  Future<void> syncActiveSystemNotifications() async {
+    try {
+      // 1. Merge any notifications stored by background isolate
+      await _loadNotifications(mergeOnly: true);
+
+      // 2. Query active notifications currently sitting in the system tray
+      if (_notificationService == null) return;
+      final activeList = await _notificationService!.getActiveNotifications();
+      bool changed = false;
+
+      for (final active in activeList) {
+        final title = active.title?.trim();
+        final body = (active.bigText ?? active.body ?? '').trim();
+        if ((title == null || title.isEmpty) && body.isEmpty) continue;
+
+        final resolvedTitle = (title != null && title.isNotEmpty) ? title : 'SkillNest';
+        final sig = '$resolvedTitle|||$body';
+        if (_dismissedNotificationKeys.contains(sig)) continue;
+
+        final exists = notifications.any(
+          (n) => n.title == resolvedTitle && n.body == body,
+        );
+
+        if (!exists) {
+          notifications.insert(
+            0,
+            VaultNotification(
+              id: 'n_${DateTime.now().microsecondsSinceEpoch}',
+              title: resolvedTitle,
+              body: body,
+              icon: Icons.notifications_outlined,
+              read: false,
+            ),
+          );
+          changed = true;
+        }
+      }
+
+      if (changed) {
+        if (notifications.length > 50) {
+          notifications.removeRange(50, notifications.length);
+        }
+        await _saveNotifications();
+        notifyListeners();
+      }
+    } catch (e) {
+      debugPrint('syncActiveSystemNotifications failed safely: $e');
+    }
+  }
+
+  Future<void> _saveNotifications() async {
+    try {
+      final file = await _getNotificationsFile();
+      final list = notifications.map((n) => {
+        'id': n.id,
+        'title': n.title,
+        'body': n.body,
+        'read': n.read,
+        'resourceId': n.resourceId,
+      }).toList();
+      await file.writeAsString(jsonEncode(list));
+    } catch (_) {}
+  }
+
+  List<CollectionModel> subCollections(String parentId) =>
+      collections.where((c) => c.parentId == parentId).toList();
+
+  List<CollectionModel> get rootCollections =>
+      collections.where((c) => c.parentId == null || c.parentId!.isEmpty).toList();
+
+  String getCollectionPath(String collectionId) {
+    final c = collections.where((col) => col.id == collectionId).firstOrNull;
+    if (c == null) return '';
+    if (c.parentId != null && c.parentId!.isNotEmpty) {
+      final parentPath = getCollectionPath(c.parentId!);
+      if (parentPath.isNotEmpty) {
+        return '$parentPath > ${c.emoji} ${c.name}';
+      }
+    }
+    return '${c.emoji} ${c.name}';
+  }
 
   Future<File> _getPrefsFile() async {
     try {
@@ -113,7 +280,7 @@ class Vault extends ChangeNotifier {
         // Existing users predate this small onboarding. Keep their update
         // quiet; only newly completed onboarding flows should show it.
         _notificationOnboardingHandled =
-            json['notificationOnboardingHandled'] as bool? ?? _firstRunDone;
+            json['notificationOnboardingHandled'] as bool? ?? false;
         if (json['userName'] != null &&
             (json['userName'] as String).trim().isNotEmpty) {
           userName = (json['userName'] as String).trim();
@@ -122,9 +289,13 @@ class Vault extends ChangeNotifier {
           final savedEmail = json['userEmail'] as String;
           userEmail = savedEmail == 'mohamed@skillnest.app' ? '' : savedEmail;
         }
+        if (json['userAvatarPath'] != null) {
+          userAvatarPath = json['userAvatarPath'] as String;
+        }
         final theme = json['themeMode'] as String?;
         if (theme == 'dark') themeMode = ThemeMode.dark;
         if (theme == 'light') themeMode = ThemeMode.light;
+        if (theme == 'system') themeMode = ThemeMode.light;
         dailyDigest = json['dailyDigest'] as bool? ?? dailyDigest;
         weeklyReport = json['weeklyReport'] as bool? ?? weeklyReport;
         unreadReminders = json['unreadReminders'] as bool? ?? unreadReminders;
@@ -148,6 +319,7 @@ class Vault extends ChangeNotifier {
         'notificationOnboardingHandled': _notificationOnboardingHandled,
         'userName': userName,
         'userEmail': userEmail,
+        'userAvatarPath': userAvatarPath,
         'themeMode': themeMode.name,
         'dailyDigest': dailyDigest,
         'weeklyReport': weeklyReport,
@@ -224,6 +396,8 @@ class Vault extends ChangeNotifier {
     _restoreService = RestoreService(_db!, _fileStorageService!);
 
     await _loadPreferences();
+    await _loadNotifications();
+    await syncActiveSystemNotifications();
     await _syncLearningReminders();
     await reloadFromDb();
   }
@@ -242,6 +416,7 @@ class Vault extends ChangeNotifier {
           name: c.name,
           emoji: c.emoji,
           accent: c.accent,
+          parentId: c.parentId,
           createdAt: c.createdAt,
         ),
       );
@@ -406,6 +581,12 @@ class Vault extends ChangeNotifier {
     if (email != null) userEmail = email;
     await _savePreferences();
     await _syncLearningReminders();
+    notifyListeners();
+  }
+
+  Future<void> setUserAvatar(String? path) async {
+    userAvatarPath = path;
+    await _savePreferences();
     notifyListeners();
   }
 
@@ -748,8 +929,28 @@ class Vault extends ChangeNotifier {
     FirebaseUsageAnalytics.instance.resourceOpened();
   }
 
+  Future<void> renameResource(String id, String newTitle) async {
+    final clean = newTitle.trim();
+    if (clean.isEmpty) return;
+    final e = find(id);
+    if (e == null) return;
+    e.title = clean;
+    notifyListeners();
+
+    if (_resourceDao != null) {
+      await _resourceDao!.updateResource(
+        id,
+        ResourcesCompanion(
+          title: Value(clean),
+        ),
+      );
+      await _searchDao?.syncResource(id);
+    }
+  }
+
   void readNotification(VaultNotification n) {
     n.read = true;
+    _saveNotifications();
     notifyListeners();
   }
 
@@ -757,6 +958,30 @@ class Vault extends ChangeNotifier {
     for (final n in notifications) {
       n.read = true;
     }
+    _saveNotifications();
+    notifyListeners();
+  }
+
+  void deleteNotification(String id) {
+    final idx = notifications.indexWhere((n) => n.id == id);
+    if (idx != -1) {
+      final n = notifications.removeAt(idx);
+      _dismissedNotificationKeys.add('${n.title}|||${n.body}');
+      _dismissedNotificationKeys.add(n.id);
+      _saveNotifications();
+      _notificationService?.cancel(n.id.hashCode);
+      notifyListeners();
+    }
+  }
+
+  void clearAllNotifications() {
+    for (final n in notifications) {
+      _dismissedNotificationKeys.add('${n.title}|||${n.body}');
+      _dismissedNotificationKeys.add(n.id);
+    }
+    notifications.clear();
+    _saveNotifications();
+    _notificationService?.cancelAllNotifications();
     notifyListeners();
   }
 
@@ -767,6 +992,13 @@ class Vault extends ChangeNotifier {
     bool pushLocal = true,
     String? resourceId,
   }) {
+    _dismissedNotificationKeys.remove('$title|||$body');
+    // Avoid duplicate identical unread notification if already at top or recent
+    final alreadyExists = notifications.any(
+      (n) => n.title == title && n.body == body && !n.read,
+    );
+    if (alreadyExists) return;
+
     final notif = VaultNotification(
       id: 'n_${DateTime.now().microsecondsSinceEpoch}',
       title: title,
@@ -777,6 +1009,7 @@ class Vault extends ChangeNotifier {
     );
     notifications.insert(0, notif);
     if (notifications.length > 50) notifications.removeLast();
+    _saveNotifications();
     notifyListeners();
 
     if (pushLocal) {
@@ -789,8 +1022,7 @@ class Vault extends ChangeNotifier {
   }
 
   void clearNotifications() {
-    notifications.clear();
-    notifyListeners();
+    clearAllNotifications();
   }
 
   static int _idCounter = 0;
@@ -916,12 +1148,14 @@ class Vault extends ChangeNotifier {
     String name, {
     String emoji = '📚',
     int? accent,
+    String? parentId,
   }) async {
     final c = CollectionModel(
       id: 'c${DateTime.now().microsecondsSinceEpoch}',
       name: name,
       emoji: emoji,
       accent: accent ?? Random().nextInt(6),
+      parentId: parentId,
     );
     collections.add(c);
     notifyListeners();
@@ -933,6 +1167,7 @@ class Vault extends ChangeNotifier {
           name: Value(c.name),
           emoji: Value(c.emoji),
           accent: Value(c.accent),
+          parentId: Value(c.parentId),
           createdAt: Value(c.createdAt),
         ),
       );
@@ -947,12 +1182,14 @@ class Vault extends ChangeNotifier {
     String name, {
     String? emoji,
     int? accent,
+    String? parentId,
   }) async {
     final c = collections.where((c) => c.id == id).firstOrNull;
     if (c == null) return;
     c.name = name;
     if (emoji != null) c.emoji = emoji;
     if (accent != null) c.accent = accent;
+    if (parentId != null) c.parentId = parentId.isEmpty ? null : parentId;
     notifyListeners();
 
     await _collectionDao?.updateCollection(
@@ -960,11 +1197,17 @@ class Vault extends ChangeNotifier {
       name: name,
       emoji: emoji,
       accent: accent,
+      parentId: parentId != null ? (parentId.isEmpty ? null : parentId) : null,
     );
     await _searchDao?.syncCollectionResources(id);
   }
 
   Future<void> deleteCollection(String id) async {
+    final deleted = collections.where((c) => c.id == id).firstOrNull;
+    for (final child in subCollections(id)) {
+      child.parentId = deleted?.parentId;
+      await _collectionDao?.updateCollection(child.id, parentId: child.parentId);
+    }
     collections.removeWhere((c) => c.id == id);
     for (final e in items.where((e) => e.collectionId == id)) {
       e.collectionId = null;
@@ -973,6 +1216,29 @@ class Vault extends ChangeNotifier {
     await _collectionDao?.deleteCollection(id);
     await _searchDao?.syncCollectionResources(id);
     _analyticsService?.trackCollectionDeleted(id);
+  }
+
+  Future<StickyItemModel?> addStickyItem(
+    String noteId,
+    String text, {
+    bool isBullet = false,
+  }) async {
+    final clean = text.trim();
+    if (clean.isEmpty) return null;
+    if (_stickyNoteRepo != null) {
+      final item = await _stickyNoteRepo!.addItem(
+        noteId,
+        clean,
+        isBullet: isBullet,
+      );
+      final note = stickyNotes.where((n) => n.id == noteId).firstOrNull;
+      if (note != null) {
+        note.items.add(item);
+        notifyListeners();
+      }
+      return item;
+    }
+    return null;
   }
 
   // ---- sticky notes & tasks --------------------------------------------

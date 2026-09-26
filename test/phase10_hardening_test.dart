@@ -121,6 +121,7 @@ void main() {
     });
 
     test('8. Vault.addNotification adds in-app item and updates badge count', () {
+      Vault.I.clearNotifications();
       final initialCount = Vault.I.notifications.length;
       Vault.I.addNotification(
         title: 'New Saved Resource',
@@ -616,6 +617,51 @@ void main() {
       await Vault.I.reloadFromDb();
 
       expect(Vault.I.items.any((i) => i.title == 'Persistent Item Across Restart'), isTrue);
+    });
+
+    test('43. renameResource updates resource title in memory, database, and search index', () async {
+      final item = await Vault.I.add(
+        title: 'Original Title',
+        source: 'example.com',
+        url: 'https://example.com/item',
+        kind: ResourceKind.article,
+      );
+      expect(item.title, 'Original Title');
+
+      await Vault.I.renameResource(item.id, 'Updated New Title');
+      expect(item.title, 'Updated New Title');
+
+      // Verify in SQLite
+      final dbItem = await db.resourceDao.findById(item.id);
+      expect(dbItem?.title, 'Updated New Title');
+    });
+
+    test('44. deleteNotification removes notification and marks it as dismissed', () async {
+      Vault.I.addNotification(
+        title: 'Swipe Test Notification',
+        body: 'Swipe to dismiss body',
+      );
+      expect(Vault.I.notifications.any((n) => n.title == 'Swipe Test Notification'), isTrue);
+      final notifId = Vault.I.notifications.firstWhere((n) => n.title == 'Swipe Test Notification').id;
+
+      Vault.I.deleteNotification(notifId);
+      expect(Vault.I.notifications.any((n) => n.id == notifId), isFalse);
+
+      // Verify syncActiveSystemNotifications will not re-insert it
+      await Vault.I.syncActiveSystemNotifications();
+      expect(Vault.I.notifications.any((n) => n.id == notifId), isFalse);
+    });
+
+    test('45. clearAllNotifications empties list and prevents resurrection', () async {
+      Vault.I.addNotification(title: 'N1', body: 'B1');
+      Vault.I.addNotification(title: 'N2', body: 'B2');
+      expect(Vault.I.notifications.length, greaterThanOrEqualTo(2));
+
+      Vault.I.clearAllNotifications();
+      expect(Vault.I.notifications.isEmpty, isTrue);
+
+      await Vault.I.syncActiveSystemNotifications();
+      expect(Vault.I.notifications.isEmpty, isTrue);
     });
   });
 }

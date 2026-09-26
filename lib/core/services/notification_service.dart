@@ -212,6 +212,13 @@ class NotificationService {
               AndroidFlutterLocalNotificationsPlugin
             >();
         return await androidPlugin?.areNotificationsEnabled() ?? false;
+      } else if (!kIsWeb && (Platform.isIOS || Platform.isMacOS)) {
+        final darwinPlugin = _plugin
+            .resolvePlatformSpecificImplementation<
+              IOSFlutterLocalNotificationsPlugin
+            >();
+        final permissions = await darwinPlugin?.checkPermissions();
+        return permissions?.isEnabled ?? false;
       }
       return true;
     } catch (_) {
@@ -491,6 +498,18 @@ class NotificationService {
   /// Alias for cancelAll.
   Future<void> cancelAllNotifications() => cancelAll();
 
+  /// Returns all currently active notifications displayed in the system tray.
+  Future<List<ActiveNotification>> getActiveNotifications() async {
+    if (isTestMode) return const [];
+    try {
+      final list = await _plugin.getActiveNotifications();
+      return list;
+    } catch (e) {
+      debugPrint('getActiveNotifications failed safely: $e');
+      return const [];
+    }
+  }
+
   /// Cancels all active notifications.
   Future<void> cancelAll() async {
     try {
@@ -500,3 +519,4 @@ class NotificationService {
     }
   }
 }
+

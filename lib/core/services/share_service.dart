@@ -2,6 +2,8 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
+import '../../main.dart' show RoutePaths;
+import '../../screens/add_resource.dart' show AddArgs, AddSource;
 import '../utils/share_parser.dart';
 
 class ShareService with WidgetsBindingObserver {
@@ -16,6 +18,18 @@ class ShareService with WidgetsBindingObserver {
   bool _initialized = false;
   String? _pendingUrl;
   bool _handlingNativeShare = false;
+  bool _isAppReady = false;
+
+  bool get hasPendingShare => _pendingUrl != null && _pendingUrl!.isNotEmpty;
+  String? get pendingUrl => _pendingUrl;
+
+  /// Marks that RootShell has mounted and it is safe to dispatch navigation.
+  void markAppReady() {
+    _isAppReady = true;
+    if (_pendingUrl != null && _pendingUrl!.isNotEmpty) {
+      _dispatchPendingNavigation();
+    }
+  }
 
   /// Global navigator key to dispatch navigation when share arrives
   GlobalKey<NavigatorState>? navigatorKey;
@@ -31,7 +45,8 @@ class ShareService with WidgetsBindingObserver {
         if (_handlingNativeShare) return;
         _handlingNativeShare = true;
         final rawText = call.arguments as String?;
-        final url = ShareParser.extractUrl(rawText);
+        final url = ShareParser.extractUrl(rawText) ??
+            (rawText?.trim().isNotEmpty == true ? rawText!.trim() : null);
         if (url != null && url.isNotEmpty) {
           _pendingUrl = url;
           _shareStreamController.add(url);
@@ -53,12 +68,16 @@ class ShareService with WidgetsBindingObserver {
   }
 
   Future<String?> checkInitialShare() async {
+    if (_pendingUrl != null && _pendingUrl!.isNotEmpty) {
+      return _pendingUrl;
+    }
     try {
       final rawText = await _channel.invokeMethod<String>(
         'getInitialSharedText',
       );
       if (rawText != null && rawText.isNotEmpty) {
-        final url = ShareParser.extractUrl(rawText);
+        final url = ShareParser.extractUrl(rawText) ??
+            (rawText.trim().isNotEmpty ? rawText.trim() : null);
         if (url != null && url.isNotEmpty) {
           _pendingUrl = url;
           return url;
@@ -71,12 +90,20 @@ class ShareService with WidgetsBindingObserver {
   }
 
   void _dispatchPendingNavigation() {
+    if (!_isAppReady) {
+      // Hold dispatching until the primary app (RootShell) has mounted,
+      // avoiding race conditions with SplashScreen route replacement.
+      return;
+    }
     final nav = navigatorKey?.currentState;
-    if (nav != null && _pendingUrl != null) {
+    if (nav != null && _pendingUrl != null && _pendingUrl!.isNotEmpty) {
       final url = _pendingUrl!;
       _pendingUrl = null;
       WidgetsBinding.instance.addPostFrameCallback((_) {
-        nav.pushNamed('/add', arguments: url);
+        nav.pushNamed(
+          RoutePaths.add,
+          arguments: AddArgs(initialUrl: url, source: AddSource.share),
+        );
       });
     } else if (_pendingUrl != null) {
       // A share can arrive while Flutter is still creating its navigator.
@@ -88,7 +115,7 @@ class ShareService with WidgetsBindingObserver {
   }
 
   void consumePendingShare(void Function(String url) onConsume) {
-    if (_pendingUrl != null) {
+    if (_pendingUrl != null && _pendingUrl!.isNotEmpty) {
       final url = _pendingUrl!;
       _pendingUrl = null;
       onConsume(url);
