@@ -38,6 +38,25 @@ final class ShareBridgePlugin: NSObject, FlutterPlugin {
         return
       }
       UIApplication.shared.open(url, options: [:]) { result($0) }
+    case "shareText":
+      guard let args = call.arguments as? [String: Any],
+            let text = args["text"] as? String, !text.isEmpty else {
+        result(FlutterError(code: "INVALID_TEXT", message: "Text is empty", details: nil))
+        return
+      }
+      let activityVC = UIActivityViewController(activityItems: [text], applicationActivities: nil)
+      if let rootVC = UIApplication.shared.windows.first(where: { $0.isKeyWindow })?.rootViewController ?? UIApplication.shared.windows.first?.rootViewController {
+        if let popover = activityVC.popoverPresentationController {
+          popover.sourceView = rootVC.view
+          popover.sourceRect = CGRect(x: rootVC.view.bounds.midX, y: rootVC.view.bounds.midY, width: 0, height: 0)
+          popover.permittedArrowDirections = []
+        }
+        rootVC.present(activityVC, animated: true) {
+          result(true)
+        }
+      } else {
+        result(false)
+      }
     default:
       result(FlutterMethodNotImplemented)
     }

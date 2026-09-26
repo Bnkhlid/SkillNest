@@ -5,6 +5,7 @@ import 'package:flutter/services.dart';
 import 'package:open_filex/open_filex.dart';
 
 import '../app_theme.dart';
+import '../core/services/share_service.dart';
 import '../core/utils/external_launcher.dart';
 import '../models.dart';
 import '../vault.dart';
@@ -148,11 +149,7 @@ class _ViewerScreenState extends State<ViewerScreen> {
               IconButton(
                 icon: const Icon(Icons.ios_share_rounded),
                 tooltip: 'Share',
-                onPressed: () => LvSnackbar.show(
-                  context,
-                  'Share sheet (demo)',
-                  icon: Icons.ios_share_rounded,
-                ),
+                onPressed: () => ShareService.shareResource(context, e),
               ),
               _downloadBtn(context, e),
               PopupMenuButton<String>(

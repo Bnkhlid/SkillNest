@@ -61,6 +61,26 @@ class MainActivity : FlutterActivity() {
                             result.error("INVALID_URL", "URL is empty", null)
                         }
                     }
+                    "shareText" -> {
+                        val text = call.argument<String>("text")
+                        if (!text.isNullOrBlank()) {
+                            try {
+                                val sendIntent = Intent(Intent.ACTION_SEND).apply {
+                                    type = "text/plain"
+                                    putExtra(Intent.EXTRA_TEXT, text)
+                                }
+                                val shareIntent = Intent.createChooser(sendIntent, null).apply {
+                                    addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                                }
+                                startActivity(shareIntent)
+                                result.success(true)
+                            } catch (e: Exception) {
+                                result.error("SHARE_ERROR", e.message, null)
+                            }
+                        } else {
+                            result.error("INVALID_TEXT", "Text is empty", null)
+                        }
+                    }
                     else -> result.notImplemented()
                 }
             }

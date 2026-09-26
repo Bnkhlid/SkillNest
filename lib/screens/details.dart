@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:open_filex/open_filex.dart';
 
 import '../app_theme.dart';
+import '../core/services/share_service.dart';
 import '../core/utils/external_launcher.dart';
 import '../models.dart';
 import '../vault.dart';
@@ -460,11 +461,7 @@ class _DetailsScreenState extends State<DetailsScreen> {
                   () => _openLocalFile(context, e),
                 ),
               _actionRow(context, Icons.ios_share_rounded, 'Share', () {
-                LvSnackbar.show(
-                  context,
-                  'Share sheet (demo)',
-                  icon: Icons.ios_share_rounded,
-                );
+                ShareService.shareResource(context, e);
               }),
               if (e.url.isNotEmpty)
                 _actionRow(context, Icons.sync_rounded, 'Retry metadata', () {
@@ -693,11 +690,7 @@ class _DetailsScreenState extends State<DetailsScreen> {
       case 'open_file':
         _openLocalFile(context, e);
       case 'share':
-        LvSnackbar.show(
-          context,
-          'Share sheet (demo)',
-          icon: Icons.ios_share_rounded,
-        );
+        ShareService.shareResource(context, e);
       case 'retry':
         Vault.I.retryMetadata(e);
         LvSnackbar.show(

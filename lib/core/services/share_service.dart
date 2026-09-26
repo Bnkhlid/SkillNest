@@ -3,7 +3,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 import '../../main.dart' show RoutePaths;
+import '../../models.dart' show ResourceItem;
 import '../../screens/add_resource.dart' show AddArgs, AddSource;
+import '../../widgets/components.dart' show LvSnackbar;
 import '../utils/share_parser.dart';
 
 class ShareService with WidgetsBindingObserver {
@@ -22,6 +24,42 @@ class ShareService with WidgetsBindingObserver {
 
   bool get hasPendingShare => _pendingUrl != null && _pendingUrl!.isNotEmpty;
   String? get pendingUrl => _pendingUrl;
+
+  /// Outgoing text sharing to system share sheet
+  static Future<bool> shareText(String text) async {
+    final trimmed = text.trim();
+    if (trimmed.isEmpty) return false;
+    try {
+      final res = await _channel.invokeMethod<bool>('shareText', {'text': trimmed});
+      if (res == true) return true;
+    } catch (_) {}
+    return false;
+  }
+
+  /// Outgoing resource sharing helper
+  static Future<void> shareResource(BuildContext context, ResourceItem item) async {
+    final buffer = StringBuffer();
+    if (item.title.isNotEmpty) buffer.writeln(item.title);
+    if (item.url.isNotEmpty) {
+      buffer.writeln(item.url);
+    } else if (item.note.isNotEmpty) {
+      buffer.writeln(item.note);
+    }
+    final content = buffer.toString().trim();
+    if (content.isEmpty) return;
+
+    final shared = await shareText(content);
+    if (!shared) {
+      await Clipboard.setData(ClipboardData(text: content));
+      if (context.mounted) {
+        LvSnackbar.show(
+          context,
+          'Copied to clipboard',
+          icon: Icons.copy_rounded,
+        );
+      }
+    }
+  }
 
   /// Marks that RootShell has mounted and it is safe to dispatch navigation.
   void markAppReady() {
